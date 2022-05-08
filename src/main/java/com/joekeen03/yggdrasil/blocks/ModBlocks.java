@@ -1,4 +1,4 @@
-package com.authorname.modid.blocks;
+package com.joekeen03.yggdrasil.blocks;
 
 import net.minecraft.block.Block;
 import net.minecraft.block.material.Material;

@@ -14,8 +14,8 @@ apply plugin: 'eclipse'
 apply plugin: 'maven-publish'
 
 version = '0.0.1'
-group = 'com.joekeen03.jkworldgen' // http://maven.apache.org/guides/mini/guide-naming-conventions.html
-archivesBaseName = 'JKWorldGen[CC]'
+group = 'com.joekeen03.yggdrasil' // http://maven.apache.org/guides/mini/guide-naming-conventions.html
+archivesBaseName = 'Yggdrasil[CC]'
 
 sourceCompatibility = targetCompatibility = compileJava.sourceCompatibility = compileJava.targetCompatibility = '1.8' // Need this here so eclipse task generates correctly.
 

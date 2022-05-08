@@ -1,8 +1,8 @@
-package com.authorname.modid.blocks;
+package com.joekeen03.yggdrasil.blocks;
 
-import com.authorname.modid.MainModClass;
-import com.authorname.modid.client.render.IHasModel;
-import com.authorname.modid.items.ModItems;
+import com.joekeen03.yggdrasil.ModYggdrasil;
+import com.joekeen03.yggdrasil.client.render.IHasModel;
+import com.joekeen03.yggdrasil.items.ModItems;
 import net.minecraft.block.Block;
 import net.minecraft.block.material.Material;
 import net.minecraft.creativetab.CreativeTabs;
@@ -24,6 +24,6 @@ public class ModBlock extends Block implements IHasModel {
     @Override
     public void registerModels()
     {
-        MainModClass.proxy.registerItemRenderer(Item.getItemFromBlock(this), 0, "inventory");
+        ModYggdrasil.proxy.registerItemRenderer(Item.getItemFromBlock(this), 0, "inventory");
     }
 }

@@ -1,4 +1,4 @@
-package com.authorname.modid.proxy;
+package com.joekeen03.yggdrasil.proxy;
 
 import net.minecraft.client.renderer.block.model.ModelResourceLocation;
 import net.minecraft.item.Item;

@@ -1,9 +1,10 @@
-package com.authorname.modid.proxy;
+package com.joekeen03.yggdrasil.proxy;
 
-import com.authorname.modid.MainModClass;
-import com.authorname.modid.blocks.ModBlocks;
-import com.authorname.modid.client.render.IHasModel;
-import com.authorname.modid.items.ModItems;
+import com.joekeen03.yggdrasil.ModYggdrasil;
+import com.joekeen03.yggdrasil.blocks.ModBlocks;
+import com.joekeen03.yggdrasil.client.render.IHasModel;
+import com.joekeen03.yggdrasil.items.ModItems;
+import com.joekeen03.yggdrasil.world.WorldTypeYggdrasil;
 import net.minecraft.block.Block;
 import net.minecraft.init.Blocks;
 import net.minecraft.item.Item;
@@ -21,25 +22,25 @@ public class CommonProxy {
 
     public void preInit(FMLPreInitializationEvent event)
     {
-
+        WorldTypeYggdrasil.create();
     }
 
     public void init(FMLInitializationEvent event)
     {
         // some example code
-        MainModClass.info(String.format("DIRT BLOCK >> {}", Blocks.DIRT.getRegistryName()));
+        ModYggdrasil.info(String.format("DIRT BLOCK >> {}", Blocks.DIRT.getRegistryName()));
     }
 
     public void registerBlocks(RegistryEvent.Register<Block> event)
     {
         event.getRegistry().registerAll(ModBlocks.BLOCKS.toArray(new Block[0]));
-        MainModClass.info("Registered blocks.");
+        ModYggdrasil.info("Registered blocks.");
     }
 
     public void registerItems(RegistryEvent.Register<Item> event)
     {
         event.getRegistry().registerAll(ModItems.ITEMS.toArray(new Item[0]));
-        MainModClass.info("Registered items.");
+        ModYggdrasil.info("Registered items.");
     }
 
     public void registerModels(ModelRegistryEvent event)

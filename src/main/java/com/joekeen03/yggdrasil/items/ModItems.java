@@ -1,4 +1,4 @@
-package com.authorname.modid.items;
+package com.joekeen03.yggdrasil.items;
 
 import net.minecraft.item.Item;
 
