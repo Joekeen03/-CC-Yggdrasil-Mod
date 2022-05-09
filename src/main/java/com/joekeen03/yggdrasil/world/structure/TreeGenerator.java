@@ -1,5 +1,6 @@
 package com.joekeen03.yggdrasil.world.structure;
 
+import com.joekeen03.yggdrasil.ModYggdrasil;
 import io.github.opencubicchunks.cubicchunks.api.util.Coords;
 import io.github.opencubicchunks.cubicchunks.api.util.CubePos;
 import io.github.opencubicchunks.cubicchunks.api.world.ICube;
@@ -15,14 +16,14 @@ import net.minecraft.world.World;
 import java.util.Random;
 
 public class TreeGenerator implements ICubicStructureGenerator {
-    private static final int X_RANGE = 32;
-    private static final int Z_RANGE = 32;
-    private static final int TREE_RATE = 20; // On average, 1 out of this many structure origins will spawn a tree.
+    private static final int XZ_RANGE = 4;
+    private static final int Y_RANGE = 65;
+    private static final int TREE_RATE = 5; // On average, 1 out of this many structure origins will spawn a tree.
     private static final IBlockState OAK_LOG = Blocks.LOG.getDefaultState().withProperty(BlockOldLog.VARIANT, BlockPlanks.EnumType.OAK);
     private static final IBlockState OAK_BARK = Blocks.LOG.getDefaultState().withProperty(BlockOldLog.VARIANT, BlockPlanks.EnumType.OAK)
             .withProperty(BlockLog.LOG_AXIS, BlockLog.EnumAxis.NONE);
     public void generate(World world, CubePrimer cubePrimer, CubePos cubePos) {
-        this.generate(world, cubePrimer, cubePos, this::generate, X_RANGE, Z_RANGE, 4, 4);
+        this.generate(world, cubePrimer, cubePos, this::generate, XZ_RANGE, Y_RANGE, 1, 0);
     }
 
     protected void generate(World world, Random rand, CubePrimer cube,
@@ -49,42 +50,59 @@ public class TreeGenerator implements ICubicStructureGenerator {
 
         // Ensure cube is w/in range of the trunk
         if (getDistSquared(generatedCubePos.getXCenter(), generatedCubePos.getZCenter(),
-                trunkXCenter, trunkZCenter) > (trunkRadius + ICube.SIZE)) {
+                trunkXCenter, trunkZCenter) > (trunkRadius + ICube.SIZE)*(trunkRadius + ICube.SIZE)) {
             return;
         }
         if ((generatedCubePos.getMaxBlockY() < trunkYCenter) ||
                 (generatedCubePos.getMinBlockY() > (trunkYCenter+trunkHeight))) {
             return;
         }
+        ModYggdrasil.logger.info("Attempting to generate tree centered @ "+structureX+","+structureY+","+structureZ);
 
         // Generate the trunk
-        int minX = Math.max(trunkXCenter-trunkRadius, generatedCubePos.getMinBlockX());
-        int minY = Math.max(trunkYCenter, generatedCubePos.getMinBlockY());
-        int minZ = Math.max(trunkZCenter-trunkRadius, generatedCubePos.getMinBlockZ());
+        // Offset of the cube origin (min coords) from the trunk's origin
+        int cubeXOffset = generatedCubePos.getMinBlockX()-trunkXCenter;
+        int cubeYOffset = generatedCubePos.getMinBlockY()-trunkYCenter;
+        int cubeZOffset = generatedCubePos.getMinBlockZ()-trunkZCenter;
+        // Trunk-local coords
+        int minX = Math.max(-trunkRadius, cubeXOffset);
+        int minY = Math.max(0, cubeYOffset);
+        int minZ = Math.max(-trunkRadius, cubeZOffset);
 
-        int maxX = Math.min(trunkXCenter+trunkRadius, generatedCubePos.getMaxBlockX());
-        int maxY = Math.min(trunkYCenter+trunkHeight, generatedCubePos.getMaxBlockY());
-        int maxZ = Math.min(trunkZCenter+trunkRadius, generatedCubePos.getMaxBlockZ());
+        int maxX = Math.min(trunkRadius, generatedCubePos.getMaxBlockX()-trunkXCenter);
+        int maxY = Math.min(trunkHeight, generatedCubePos.getMaxBlockY()-trunkYCenter);
+        int maxZ = Math.min(trunkRadius, generatedCubePos.getMaxBlockZ()-trunkZCenter);
         final int radiusSquared = trunkRadius*trunkRadius;
-        for (int x = minX; x <= maxX; x++) {
-            for (int z = minZ; z <= maxZ; z++) {
+        int blockCount = 0;
+        for (int x = minX; x <= maxX; x++) { // Trunk-local
+            int cubeX = x-cubeXOffset; // Cube local
+            for (int z = minZ; z <= maxZ; z++) { // Trunk-local
                 if ((x*x+z*z) > radiusSquared) { // Outside of circle
                     continue;
                 }
-                for (int y = minY; y <= maxY; y++) {
-                    cube.setBlockState(x, y, z, OAK_LOG);
+                int cubeZ = z-cubeZOffset; // Cube local
+                for (int y = minY; y <= maxY; y++) { // Trunk-local
+                    cube.setBlockState(cubeX, y-cubeYOffset, cubeZ, OAK_LOG);
+                    blockCount++;
                 }
             }
         }
 
         // Generate the trunk's bark
         for (double theta = 0; theta < Math.PI*2; theta += 0.01) {
-            int x = (int)(Math.cos(theta)*trunkRadius);
-            int z = (int)(Math.sin(theta)*trunkRadius);
-            for (int y = minY; y <= maxY; y++) {
-                cube.setBlockState(x, y, z, OAK_BARK);
+            int x = (int)(Math.cos(theta)*trunkRadius); // Trunk-local
+            int cubeX = x-cubeXOffset; // Cube local
+            int z = (int)(Math.sin(theta)*trunkRadius); // Trunk-local
+            int cubeZ = z-cubeZOffset; // Cube local
+            if (((cubeX | 0xF) != 0xF) || (cubeZ | 0xF) != 0xF) { // If the cube-local coordinates are out of bounds [0, 15]
+                continue;
+            }
+            for (int y = minY; y <= maxY; y++) { // Trunk local
+                cube.setBlockState(cubeX, y-cubeYOffset, cubeZ, OAK_BARK);
+                blockCount++;
             }
         }
+        ModYggdrasil.logger.info("Tree generated @ "+structureX+","+structureY+","+structureZ+", for cube at "+generatedCubePos+". "+blockCount+" blocks placed.");
     }
 
     public static int getDistSquared(int xA, int zA, int xB, int zB) {

@@ -80,6 +80,7 @@ dependencies {
     compileOnly("io.github.opencubicchunks:cubicchunks-api:1.12.2-0.0-SNAPSHOT") {
         exclude module: "mixin"
     }
+    // runtimeOnly("io.github.opencubicchunks:cubicchunks-all:1.12.2-0.0-SNAPSHOT") { }
 
     // The 'provided' configuration is for optional dependencies that exist at compile-time but might not at runtime.
     // provided 'com.mod-buildcraft:buildcraft:6.0.8:dev'
