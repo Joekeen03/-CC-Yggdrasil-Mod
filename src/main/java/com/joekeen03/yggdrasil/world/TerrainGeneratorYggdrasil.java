@@ -1,22 +1,18 @@
 package com.joekeen03.yggdrasil.world;
 
-import com.joekeen03.yggdrasil.world.structure.TreeGenerator;
+import com.joekeen03.yggdrasil.world.structure.TreeMegaStructureGenerator;
 import io.github.opencubicchunks.cubicchunks.api.util.Box;
 import io.github.opencubicchunks.cubicchunks.api.util.Coords;
 import io.github.opencubicchunks.cubicchunks.api.util.CubePos;
 import io.github.opencubicchunks.cubicchunks.api.world.ICube;
 import io.github.opencubicchunks.cubicchunks.api.worldgen.CubePrimer;
 import io.github.opencubicchunks.cubicchunks.api.worldgen.ICubeGenerator;
-import io.github.opencubicchunks.cubicchunks.api.worldgen.structure.ICubicStructureGenerator;
-import io.github.opencubicchunks.cubicchunks.api.worldgen.structure.event.InitCubicStructureGeneratorEvent;
 import net.minecraft.entity.EnumCreatureType;
 import net.minecraft.init.Blocks;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraft.world.biome.Biome;
 import net.minecraft.world.chunk.Chunk;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.event.terraingen.InitMapGenEvent;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -26,17 +22,13 @@ public class TerrainGeneratorYggdrasil implements ICubeGenerator {
     protected World world;
     protected long seed;
     private Biome[] columnBiomes;
-    @Nonnull private ICubicStructureGenerator treeGenerator;
+    @Nonnull private TreeMegaStructureGenerator treeMegaGenerator;
 
     public TerrainGeneratorYggdrasil(World world, long seed) {
         this.world = world;
         this.seed = seed;
-        InitCubicStructureGeneratorEvent treeEvent = new InitCubicStructureGeneratorEvent(
-                InitMapGenEvent.EventType.CUSTOM, new TreeGenerator(), world);
-
-        MinecraftForge.TERRAIN_GEN_BUS.post(treeEvent);
-
-        this.treeGenerator = treeEvent.getNewGen();
+        // TODO Post an event for this?
+        this.treeMegaGenerator = new TreeMegaStructureGenerator();
     }
 
     @Override
@@ -48,6 +40,7 @@ public class TerrainGeneratorYggdrasil implements ICubeGenerator {
     public CubePrimer generateCube(int cubeX, int cubeY, int cubeZ, CubePrimer cubePrimer) {
         generate(cubePrimer, cubeX, cubeY, cubeZ);
         generateStructures(cubePrimer, new CubePos(cubeX, cubeY, cubeZ));
+        generateMegaStructures(cubePrimer, new CubePos(cubeX, cubeY, cubeZ));
         return cubePrimer;
     }
 
@@ -123,6 +116,9 @@ public class TerrainGeneratorYggdrasil implements ICubeGenerator {
             For things like the giga-trees, check y-level before even trying to generate them - check if you're above
             the column's "ground-level" (what if you have trees generate underground?)
          */
-        this.treeGenerator.generate(this.world, cubePrimer, cubePos);
+    }
+
+    public void generateMegaStructures(CubePrimer cubePrimer, CubePos cubePos) {
+        this.treeMegaGenerator.generate(this.world, cubePrimer, cubePos);
     }
 }

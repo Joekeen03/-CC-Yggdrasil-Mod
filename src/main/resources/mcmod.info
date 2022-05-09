@@ -1,7 +1,7 @@
 [
 {
-  "modid": "modid",
-  "name": "Mod Name",
+  "modid": "yggdrasil",
+  "name": "Yggdrasil",
   "description": "Custom mod for CubicChunks",
   "version": "${version}",
   "mcversion": "${mcversion}",
