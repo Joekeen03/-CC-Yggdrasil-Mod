@@ -1,29 +1,36 @@
 package com.joekeen03.yggdrasil.world.structure;
 
-import com.joekeen03.yggdrasil.ModYggdrasil;
-import io.github.opencubicchunks.cubicchunks.api.util.Coords;
+import com.joekeen03.yggdrasil.util.Cylinder;
+import com.joekeen03.yggdrasil.util.Helpers;
+import com.joekeen03.yggdrasil.util.IntegerAABBTree;
 import io.github.opencubicchunks.cubicchunks.api.util.CubePos;
 import io.github.opencubicchunks.cubicchunks.api.world.ICube;
 import io.github.opencubicchunks.cubicchunks.api.worldgen.CubePrimer;
 import io.github.opencubicchunks.cubicchunks.api.worldgen.structure.ICubicStructureGenerator;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.minecraft.block.BlockLog;
 import net.minecraft.block.BlockOldLog;
 import net.minecraft.block.BlockPlanks;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Blocks;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.Random;
+import java.util.function.LongFunction;
 
 public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
     private static final int TREE_RATE = 5; // On average, 1 out of this many sectors will spawn a tree.
-    final int treeWidth=128;
-    final int treeHeight=2048;
-    final int xzSectorSize = treeWidth/2;
-    final int ySectorSize = treeHeight/2;
+    private static final int treeWidth=128;
+    private static final int treeHeight=2048;
+    private static final int xzSectorSize = treeWidth/2;
+    private static final int ySectorSize = treeHeight/2;
     private static final IBlockState OAK_LOG = Blocks.LOG.getDefaultState().withProperty(BlockOldLog.VARIANT, BlockPlanks.EnumType.OAK);
     private static final IBlockState OAK_BARK = Blocks.LOG.getDefaultState().withProperty(BlockOldLog.VARIANT, BlockPlanks.EnumType.OAK)
             .withProperty(BlockLog.LOG_AXIS, BlockLog.EnumAxis.NONE);
+    private static final Long2ObjectOpenHashMap<IntegerAABBTree> treeCache = new Long2ObjectOpenHashMap<>(10);
 
     @Override
     public void generate(World world, CubePrimer cube, CubePos cubePos) {
@@ -75,11 +82,11 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
         }
     }
 
-    protected void generate(World world, Random rand, CubePrimer cube,
+    protected void generate(World world, Random structureRandom, CubePrimer cube,
                             int sectorX, int sectorY, int sectorZ,
                             CubePos generatedCubePos) {
 
-        if (rand.nextInt(TREE_RATE) != 0) {
+        if (structureRandom.nextInt(TREE_RATE) != 0) {
             return;
         }
 
@@ -90,77 +97,238 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
             return;
         }
 
-        final int trunkXCenter = rand.nextInt(xzSectorSize)+sectorX*xzSectorSize;
+        final int trunkXCenter = structureRandom.nextInt(xzSectorSize)+sectorX*xzSectorSize;
         final int trunkYCenter = 48;
-        final int trunkZCenter = rand.nextInt(xzSectorSize)+sectorZ*xzSectorSize;
-        int trunkHeight = rand.nextInt(512)+512; // Trunk height range: [512, 1024)
-        int trunkRadius = rand.nextInt(16)+32; // Trunk's base radius range: [32, 48)
+        final int trunkZCenter = structureRandom.nextInt(xzSectorSize)+sectorZ*xzSectorSize;
+        int trunkHeight = structureRandom.nextInt(512)+512; // Trunk height range: [512, 1024)
+        int trunkRadius = structureRandom.nextInt(16)+32; // Trunk's base radius range: [32, 48)
         // - maybe should be influenced by height?
 
+        generateTrunk(cube, generatedCubePos, trunkXCenter, trunkYCenter, trunkZCenter, trunkRadius, trunkHeight);
+
+        final int nBranches = Helpers.randIntRange(structureRandom, (int)(trunkHeight/2/20*0.9), (int)(trunkHeight/2/20*1.1));
+        double[][] branchInfo = new double[nBranches][4];
+        for (int i = 0; i < nBranches; i++) {
+            double[] branch = branchInfo[i];
+            // Where the branch is - maybe this should be weighted towards the top?
+            branch[0] = Helpers.randDoubleRange(structureRandom, 0.5, 1.0);
+            // Thickness relative to the trunk at that point - weighted so branches get thicker relative to the branch
+            // as you go up
+            branch[1] = Helpers.randDoubleRange(structureRandom, 0.1, branch[0]*1.6-0.6);
+            // Angle the branch leaves the tree at, in spherical coords
+            branch[2] = Helpers.randDoubleRange(structureRandom, Math.PI*0.45, Math.PI*0.3); // polar
+            branch[3] = Helpers.randDoubleRange(structureRandom, 0.0, Math.PI*2); // azimuthal
+        }
+
+        Arrays.sort(branchInfo, Comparator.comparingDouble(arr -> arr[0])); // Sort the branches from bottom to top
+        final Cylinder[] cylinders = new Cylinder[nBranches*2+1];
+        double currBaseRadius = trunkRadius;
+        double lastHeight = 0.0;
+        for (int i = 0; i < nBranches; i++) {
+            // Branch cylinder
+            cylinders[i] = new Cylinder(new BlockPos(trunkXCenter, trunkYCenter+trunkHeight*(branchInfo[i][0]), trunkZCenter),
+                    currBaseRadius*branchInfo[i][1], 300, branchInfo[i][2], branchInfo[i][3]);
+            // Trunk segment
+            cylinders[nBranches+i] = new Cylinder(
+                    new BlockPos(trunkXCenter, trunkYCenter+trunkHeight*lastHeight, trunkZCenter),
+                    trunkRadius, trunkHeight*(branchInfo[i][1]-lastHeight), 0.0, 0.0);
+            currBaseRadius *= Math.sqrt(1-branchInfo[i][1]*branchInfo[i][1]);
+            lastHeight = branchInfo[i][0];
+        }
+
+        // For each branch:
+            // Generate a segment - random length
+                // Average length should drop w/ thickness
+                // Maybe segments should slowly become thinner over their length
+            // Generate a random number of branches leaving the segment, and random angles/base thicknesses for them
+            // Call the method recursively on those branches.
+            // If the branch reaches a certain minimum thickness (1?), instead generate leaves
+                // Maybe reserve this for the actual block placement - instead, terminate the algorithm past a certain
+                    // point?
+                    // Would need a way to save the generator's state - maybe you generate a seed value which you save,
+                    // which is used to seed an rng for generating the leaves/fine branches?
+                    // Basically, I only want to save the stuff that a lot of cubes will have to check/process.
+
+        // TODO - maybe a simulation type algorithm for generating trees, where it roughly simluates the tree's growth?
+
+        // TODO - Tree varieties?
+        //  Just looking in the garden, several different growth patterns. Some trees have branches that just go
+        //  straight until they taper off, with stuff branching off of them.
+        //  Some have branches that sort of zig-zag - bends might be where it used to go straight and broke off, or
+        //  might just be random - maybe following the sunlight?
+        //  Some trees, the trunk itself is rather short, and instead splits into several zig-zaggy large branches,
+        //  like Toyons.
+        //  Some seem to have one very short base, with multiple "trunks" that come out of it, parallel - like the tree
+        //  next to the Toyon.
+        //  There are also redwoods and the like, which are sort of cone shaped - one main trunk, with branches going
+        //  straight out, which grow shorter and shorter (on average) towards the top.
+        //  And so on
+
+        // TODO Tree roots? Maybe make the trunk thicker/gnarled at the base?
+        // TODO Cave system based around the roots - maybe gaps under the bigger roots where soil has sunken in, or
+        //  fissures around bigger roots, where they split apart some stone. Maybe the roots reach down into underground
+        //  lakes?
+        // TODO Knots in the trunk/branches - are they where branches used to be, and fell out? Basic research suggests
+        //  they're caused by stress in the tree, and the tree attempting to seal off the stressor (e.g. damage)
+        // TODO Trunks and branches that aren't perfectly straight
+        // TODO Trunks that aren't perfectly circular? Maybe use some 3D perlin noise, and for each exterior point on
+        //  the trunk, use the noise value at that point to shift the point out/in
+        // TODO Better way to generate circles for the trunks (esp. the bark)? For the bark, might be best to just check
+        //  if a given block is exposed to air - if so, turn it into bark.
+        // TODO How to efficiently check if a cube needs to worry about a branch?
+        // TODO Cache the results of this algorithm - otherwise, all 96x96x96 cubes will have to compute this tree
+        //      Probably generate the whole tree the first time, then cache the bounding boxes for each branching point?
+        //      Storage method:
+        // Note - logically, tree growth might be approximated as follows: initial branch angle is fixed, independent
+        //  of other branches (where starts). How the branch branches out (length of segments, segment angles), though,
+        //  will likely be impacted by the branches above it, but not the other way around.
+    }
+
+    public void generateTrunk(CubePrimer cube, CubePos generatedCubePos,
+                              int trunkXCenter, int trunkYCenter, int trunkZCenter,
+                              int trunkRadius, int trunkHeight) {
         // Ensure cube is w/in range of the trunk
-        if (getDistSquared(generatedCubePos.getXCenter(), generatedCubePos.getZCenter(),
-                trunkXCenter, trunkZCenter) > (trunkRadius + ICube.SIZE)*(trunkRadius + ICube.SIZE)) {
+        if (Helpers.getDistSquared(generatedCubePos.getXCenter(), generatedCubePos.getZCenter(),
+                trunkXCenter, trunkZCenter) > (trunkRadius + ICube.SIZE)) {
             return;
         }
+
         if ((generatedCubePos.getMaxBlockY() < trunkYCenter) ||
                 (generatedCubePos.getMinBlockY() > (trunkYCenter+trunkHeight))) {
             return;
         }
-        ModYggdrasil.logger.info("Attempting to generate tree centered @ "+trunkXCenter+","+trunkYCenter+","+trunkZCenter
-                +", for sector "+sectorX+","+sectorY+","+sectorZ);
 
         // Generate the trunk
-        // Offset of the cube origin (min coords) from the trunk's origin
-        int cubeXOffset = generatedCubePos.getMinBlockX()-trunkXCenter;
-        int cubeYOffset = generatedCubePos.getMinBlockY()-trunkYCenter;
-        int cubeZOffset = generatedCubePos.getMinBlockZ()-trunkZCenter;
-        // Trunk-local coords
-        int minX = Math.max(-trunkRadius, cubeXOffset);
-        int minY = Math.max(0, cubeYOffset);
-        int minZ = Math.max(-trunkRadius, cubeZOffset);
+        int minX = Math.max(trunkXCenter-trunkRadius, generatedCubePos.getMinBlockX());
+        int minY = Math.max(trunkYCenter, generatedCubePos.getMinBlockY());
+        int minZ = Math.max(trunkZCenter-trunkRadius, generatedCubePos.getMinBlockZ());
 
-        int maxX = Math.min(trunkRadius, generatedCubePos.getMaxBlockX()-trunkXCenter);
-        int maxY = Math.min(trunkHeight, generatedCubePos.getMaxBlockY()-trunkYCenter);
-        int maxZ = Math.min(trunkRadius, generatedCubePos.getMaxBlockZ()-trunkZCenter);
+        int maxX = Math.min(trunkXCenter+trunkRadius, generatedCubePos.getMaxBlockX());
+        int maxY = Math.min(trunkYCenter+trunkHeight, generatedCubePos.getMaxBlockY());
+        int maxZ = Math.min(trunkZCenter+trunkRadius, generatedCubePos.getMaxBlockZ());
         final int radiusSquared = trunkRadius*trunkRadius;
-        int blockCount = 0;
-        // TODO See if setting the whole cube to wood, and then carving out the air, might be more efficient for some
-        //      cases.
-        for (int x = minX; x <= maxX; x++) { // Trunk-local
-            int cubeX = x-cubeXOffset; // Cube local
-            for (int z = minZ; z <= maxZ; z++) { // Trunk-local
+        for (int x = minX; x <= maxX; x++) {
+            for (int z = minZ; z <= maxZ; z++) {
                 if ((x*x+z*z) > radiusSquared) { // Outside of circle
                     continue;
                 }
-                int cubeZ = z-cubeZOffset; // Cube local
-                for (int y = minY; y <= maxY; y++) { // Trunk-local
-                    cube.setBlockState(cubeX, y-cubeYOffset, cubeZ, OAK_LOG);
-                    blockCount++;
+                for (int y = minY; y <= maxY; y++) {
+                    cube.setBlockState(x, y, z, OAK_LOG);
                 }
             }
         }
 
         // Generate the trunk's bark
         for (double theta = 0; theta < Math.PI*2; theta += 0.01) {
-            int x = (int)(Math.cos(theta)*trunkRadius); // Trunk-local
-            int cubeX = x-cubeXOffset; // Cube local
-            int z = (int)(Math.sin(theta)*trunkRadius); // Trunk-local
-            int cubeZ = z-cubeZOffset; // Cube local
-            if (((cubeX | 0xF) != 0xF) || (cubeZ | 0xF) != 0xF) { // If the cube-local coordinates are out of bounds [0, 15]
-                continue;
-            }
-            for (int y = minY; y <= maxY; y++) { // Trunk local
-                cube.setBlockState(cubeX, y-cubeYOffset, cubeZ, OAK_BARK);
-                blockCount++;
+            int x = (int)(Math.cos(theta)*trunkRadius);
+            int z = (int)(Math.sin(theta)*trunkRadius);
+            for (int y = minY; y <= maxY; y++) {
+                cube.setBlockState(x, y, z, OAK_BARK);
             }
         }
-        ModYggdrasil.logger.info("Tree generated @ "+trunkXCenter+","+trunkYCenter+","+trunkZCenter+", for cube at "+generatedCubePos
-                +", for sector "+sectorX+","+sectorY+","+sectorZ+". "+blockCount+" blocks placed.");
     }
 
-    public static int getDistSquared(int xA, int zA, int xB, int zB) {
-        int xDiff = xA-xB;
-        int zDiff = zA-zB;
-        return xDiff*xDiff+zDiff*zDiff;
+    public void generateBranch(CubePrimer cube, CubePos generatedCubePos,
+                               Random rand, double branchThickness, double branchLength,
+                               double[] branchAngles) {
+        if (branchThickness < 1 || branchLength < 8) {
+            return;
+        }
+        Math.abs(0.3d);
+        if (rand.nextInt(4) < 2) { // Just continue the branch
+            generateBranch(cube, generatedCubePos, rand, branchThickness*0.95,
+                    branchLength* Helpers.randDoubleRange(rand, 0.4, 0.6), branchAngles);
+            return;
+        }
+        int nBranches = Helpers.randIntRange(rand, 1, Helpers.randIntRange(rand, 2, 3)); // # of branches splitting off
+        for (int i = 0; i < nBranches; i++) {
+            generateBranch(cube, generatedCubePos, rand, branchThickness* Helpers.randDoubleRange(rand, 0.2, 0.7),
+                    branchLength* Helpers.randDoubleRange(rand, 0.4, 0.6),
+                    new double[] {branchAngles[0]+ Helpers.randDoubleRange(rand, -Math.PI/18, Math.PI/18),
+                            branchAngles[1]+ Helpers.randDoubleRange(rand, -Math.PI/18, Math.PI/18)}); // Really not happy with this
+        }
+    }
+
+    public static IntegerAABBTree fetchTree(Random structureRandom, int sectorX, int sectorY, int sectorZ) {
+        // TODO would it be faster to instead always fetch the tree, and instead have a "null" tree for sectors that
+        //  shouldn't have one in them?
+        long key = ((long) sectorX << 44) | ((long) sectorY << 22) | sectorZ;
+        synchronized (treeCache) {
+            // Manual computeIfAbsent, since Long2ObjectHashMap doesn't have one which takes LongFunction.
+            if (!treeCache.containsKey(key)) {
+                treeCache.put(key, generateTree(structureRandom,
+                        sectorX, sectorY, sectorZ));
+            }
+            return treeCache.get(key);
+        }
+        // TODO Maybe replace this with a more streamlined version - one that only locks the variable if you need to
+        //  generate a tree from scratch?
+        //  Might be something like: if tree doesn't exist, lock buffer; when entering buffer, check if main cache
+        //      now has necessary tree (if another thread created it); if so, return that; otherwise, clone the main
+        //      cache into the buffer, create the tree and add it to the buffer, copy the buffer back to the main cache
+        //      variable, and return the tree.
+        //      Only concern with this is that the other threads might somehow not see the update to the main buffer?
+        //      I saw something regarding threads caching the variable, and maybe not updating their copy of it right
+        //      away? In which case, I would need to use volatile, to ensure that when a thread enters the sync-block,
+        //      it sees the most recent update to the main cache - and knows for sure whether or not the tree's been
+        //      created. But, volatile is slow?
+        //      Maybe, maintain a third map, hasCreated, which stores whether or not a tree has definitely been created
+        //      for a given structure pos, and make this volatile? Then, when entering the sync-block, it checks this
+        //      map instead - and if the tree hasn't been created, creates the tree and updates the creation-map.
+        //      But, that doesn't help if there's no way to force a cache update...maybe the hasCreated is a volatile
+        //      copy of the main cache?
+        //      Or, what if you just maintain the buffer as the most up-to-date copy of the main tree? From what I
+        //      understand, if you synchronize on a variable, that variable should be updated in main memory after you
+        //      exit the synchronized block - and it should read the most recent copy of it from main memory upon
+        //      entering the sync block. So, synchronize on the buffer map; upon entering, check if the buffer has the
+        //      tree; if it doesn't, create it, and add it to the buffer, and clone the buffer to the main map.
+        //      But, is the map guaranteed to be internally updated w/in a thread? Synchronizing on the buffer variable
+        //      only guarantees the variable - the object reference - is kept up to date - not the actual object.
+        //      Move the buffer to the main map, and clone the buffer back ? Forcing the references to be updated?
+        //      I think that would work? This guarantees that when a given thread first looks at the buffer, it will
+        //      always have the most up to date version of it? Because it's a freshly-cloned object - it shouldn't exist
+        //      in a thread's cache until it first accesses it. Though, could a thread hypothetically load the new
+        //      buffer object while it is being created? Then not update it when it should?
+    }
+
+    protected static IntegerAABBTree generateTree(Random structureRandom, int sectorX, int sectorY, int sectorZ) {
+
+        final int trunkXCenter = structureRandom.nextInt(xzSectorSize)+sectorX*xzSectorSize;
+        final int trunkYCenter = 48;
+        final int trunkZCenter = structureRandom.nextInt(xzSectorSize)+sectorZ*xzSectorSize;
+        int trunkHeight = structureRandom.nextInt(512)+512; // Trunk height range: [512, 1024)
+        int trunkRadius = structureRandom.nextInt(16)+32; // Trunk's base radius range: [32, 48)
+        // - maybe should be influenced by height?
+
+        final int nBranches = Helpers.randIntRange(structureRandom, (int)(trunkHeight/2/20*0.9), (int)(trunkHeight/2/20*1.1));
+        double[][] branchInfo = new double[nBranches][4];
+        for (int i = 0; i < nBranches; i++) {
+            double[] branch = branchInfo[i];
+            // Where the branch is - maybe this should be weighted towards the top?
+            branch[0] = Helpers.randDoubleRange(structureRandom, 0.5, 1.0);
+            // Thickness relative to the trunk at that point - weighted so branches get thicker relative to the branch
+            // as you go up
+            branch[1] = Helpers.randDoubleRange(structureRandom, 0.1, branch[0]*1.6-0.6);
+            // Angle the branch leaves the tree at, in spherical coords
+            branch[2] = Helpers.randDoubleRange(structureRandom, Math.PI*0.45, Math.PI*0.3); // polar
+            branch[3] = Helpers.randDoubleRange(structureRandom, 0.0, Math.PI*2); // azimuthal
+        }
+
+        Arrays.sort(branchInfo, Comparator.comparingDouble(arr -> arr[0])); // Sort the branches from bottom to top
+        final Cylinder[] cylinders = new Cylinder[nBranches*2+1];
+        double currBaseRadius = trunkRadius;
+        double lastHeight = 0.0;
+        for (int i = 0; i < nBranches; i++) {
+            // Branch cylinder
+            cylinders[i] = new Cylinder(new BlockPos(trunkXCenter, trunkYCenter+trunkHeight*(branchInfo[i][0]), trunkZCenter),
+                    currBaseRadius*branchInfo[i][1], 300, branchInfo[i][2], branchInfo[i][3]);
+            // Trunk segment
+            cylinders[nBranches+i] = new Cylinder(
+                    new BlockPos(trunkXCenter, trunkYCenter+trunkHeight*lastHeight, trunkZCenter),
+                    trunkRadius, trunkHeight*(branchInfo[i][1]-lastHeight), 0.0, 0.0);
+            currBaseRadius *= Math.sqrt(1-branchInfo[i][1]*branchInfo[i][1]);
+            lastHeight = branchInfo[i][0];
+        }
+        return new IntegerAABBTree(cylinders);
     }
 }
