@@ -1,6 +1,8 @@
 package com.joekeen03.yggdrasil.world.structure;
 
+import com.joekeen03.yggdrasil.ModYggdrasil;
 import com.joekeen03.yggdrasil.util.Cylinder;
+import com.joekeen03.yggdrasil.util.GenerationFeature;
 import com.joekeen03.yggdrasil.util.Helpers;
 import com.joekeen03.yggdrasil.util.IntegerAABBTree;
 import io.github.opencubicchunks.cubicchunks.api.util.CubePos;
@@ -23,7 +25,7 @@ import java.util.function.LongFunction;
 
 public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
     private static final int TREE_RATE = 5; // On average, 1 out of this many sectors will spawn a tree.
-    private static final int treeWidth=128;
+    private static final int treeWidth=512;
     private static final int treeHeight=2048;
     private static final int xzSectorSize = treeWidth/2;
     private static final int ySectorSize = treeHeight/2;
@@ -93,48 +95,12 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
         // FIXME - for proper world gen, this might need to know where the ground is in its "origin" chunk (for
         //  vertical position), even if that chunk is not yet generated.
 
-         if (sectorY != 0) { // Don't generate anywhere except starting at ground level.
-            return;
+        if (sectorY != 0) { // Don't generate anywhere except starting at ground level.
+           return;
         }
-
-        final int trunkXCenter = structureRandom.nextInt(xzSectorSize)+sectorX*xzSectorSize;
-        final int trunkYCenter = 48;
-        final int trunkZCenter = structureRandom.nextInt(xzSectorSize)+sectorZ*xzSectorSize;
-        int trunkHeight = structureRandom.nextInt(512)+512; // Trunk height range: [512, 1024)
-        int trunkRadius = structureRandom.nextInt(16)+32; // Trunk's base radius range: [32, 48)
-        // - maybe should be influenced by height?
-
-        generateTrunk(cube, generatedCubePos, trunkXCenter, trunkYCenter, trunkZCenter, trunkRadius, trunkHeight);
-
-        final int nBranches = Helpers.randIntRange(structureRandom, (int)(trunkHeight/2/20*0.9), (int)(trunkHeight/2/20*1.1));
-        double[][] branchInfo = new double[nBranches][4];
-        for (int i = 0; i < nBranches; i++) {
-            double[] branch = branchInfo[i];
-            // Where the branch is - maybe this should be weighted towards the top?
-            branch[0] = Helpers.randDoubleRange(structureRandom, 0.5, 1.0);
-            // Thickness relative to the trunk at that point - weighted so branches get thicker relative to the branch
-            // as you go up
-            branch[1] = Helpers.randDoubleRange(structureRandom, 0.1, branch[0]*1.6-0.6);
-            // Angle the branch leaves the tree at, in spherical coords
-            branch[2] = Helpers.randDoubleRange(structureRandom, Math.PI*0.45, Math.PI*0.3); // polar
-            branch[3] = Helpers.randDoubleRange(structureRandom, 0.0, Math.PI*2); // azimuthal
-        }
-
-        Arrays.sort(branchInfo, Comparator.comparingDouble(arr -> arr[0])); // Sort the branches from bottom to top
-        final Cylinder[] cylinders = new Cylinder[nBranches*2+1];
-        double currBaseRadius = trunkRadius;
-        double lastHeight = 0.0;
-        for (int i = 0; i < nBranches; i++) {
-            // Branch cylinder
-            cylinders[i] = new Cylinder(new BlockPos(trunkXCenter, trunkYCenter+trunkHeight*(branchInfo[i][0]), trunkZCenter),
-                    currBaseRadius*branchInfo[i][1], 300, branchInfo[i][2], branchInfo[i][3]);
-            // Trunk segment
-            cylinders[nBranches+i] = new Cylinder(
-                    new BlockPos(trunkXCenter, trunkYCenter+trunkHeight*lastHeight, trunkZCenter),
-                    trunkRadius, trunkHeight*(branchInfo[i][1]-lastHeight), 0.0, 0.0);
-            currBaseRadius *= Math.sqrt(1-branchInfo[i][1]*branchInfo[i][1]);
-            lastHeight = branchInfo[i][0];
-        }
+        IntegerAABBTree tree = fetchTree(structureRandom, sectorX, sectorY, sectorZ);
+        tree.forEachLeaf(generatedCubePos, feature -> feature.generate(cube, generatedCubePos));
+        //ModYggdrasil.info("Tree generation finished for cube at "+generatedCubePos);
 
         // For each branch:
             // Generate a segment - random length
@@ -163,6 +129,7 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
         //  There are also redwoods and the like, which are sort of cone shaped - one main trunk, with branches going
         //  straight out, which grow shorter and shorter (on average) towards the top.
         //  And so on
+        // TODO Different tree angles? Could have a mega tree growing out of a mountainside at an angle.
 
         // TODO Tree roots? Maybe make the trunk thicker/gnarled at the base?
         // TODO Cave system based around the roots - maybe gaps under the bigger roots where soil has sunken in, or
@@ -182,50 +149,6 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
         // Note - logically, tree growth might be approximated as follows: initial branch angle is fixed, independent
         //  of other branches (where starts). How the branch branches out (length of segments, segment angles), though,
         //  will likely be impacted by the branches above it, but not the other way around.
-    }
-
-    public void generateTrunk(CubePrimer cube, CubePos generatedCubePos,
-                              int trunkXCenter, int trunkYCenter, int trunkZCenter,
-                              int trunkRadius, int trunkHeight) {
-        // Ensure cube is w/in range of the trunk
-        if (Helpers.getDistSquared(generatedCubePos.getXCenter(), generatedCubePos.getZCenter(),
-                trunkXCenter, trunkZCenter) > (trunkRadius + ICube.SIZE)) {
-            return;
-        }
-
-        if ((generatedCubePos.getMaxBlockY() < trunkYCenter) ||
-                (generatedCubePos.getMinBlockY() > (trunkYCenter+trunkHeight))) {
-            return;
-        }
-
-        // Generate the trunk
-        int minX = Math.max(trunkXCenter-trunkRadius, generatedCubePos.getMinBlockX());
-        int minY = Math.max(trunkYCenter, generatedCubePos.getMinBlockY());
-        int minZ = Math.max(trunkZCenter-trunkRadius, generatedCubePos.getMinBlockZ());
-
-        int maxX = Math.min(trunkXCenter+trunkRadius, generatedCubePos.getMaxBlockX());
-        int maxY = Math.min(trunkYCenter+trunkHeight, generatedCubePos.getMaxBlockY());
-        int maxZ = Math.min(trunkZCenter+trunkRadius, generatedCubePos.getMaxBlockZ());
-        final int radiusSquared = trunkRadius*trunkRadius;
-        for (int x = minX; x <= maxX; x++) {
-            for (int z = minZ; z <= maxZ; z++) {
-                if ((x*x+z*z) > radiusSquared) { // Outside of circle
-                    continue;
-                }
-                for (int y = minY; y <= maxY; y++) {
-                    cube.setBlockState(x, y, z, OAK_LOG);
-                }
-            }
-        }
-
-        // Generate the trunk's bark
-        for (double theta = 0; theta < Math.PI*2; theta += 0.01) {
-            int x = (int)(Math.cos(theta)*trunkRadius);
-            int z = (int)(Math.sin(theta)*trunkRadius);
-            for (int y = minY; y <= maxY; y++) {
-                cube.setBlockState(x, y, z, OAK_BARK);
-            }
-        }
     }
 
     public void generateBranch(CubePrimer cube, CubePos generatedCubePos,
@@ -292,7 +215,7 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
     }
 
     protected static IntegerAABBTree generateTree(Random structureRandom, int sectorX, int sectorY, int sectorZ) {
-
+        ModYggdrasil.info("Creating tree at sector "+sectorX+","+sectorY+","+sectorZ);
         final int trunkXCenter = structureRandom.nextInt(xzSectorSize)+sectorX*xzSectorSize;
         final int trunkYCenter = 48;
         final int trunkZCenter = structureRandom.nextInt(xzSectorSize)+sectorZ*xzSectorSize;
@@ -310,25 +233,55 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
             // as you go up
             branch[1] = Helpers.randDoubleRange(structureRandom, 0.1, branch[0]*1.6-0.6);
             // Angle the branch leaves the tree at, in spherical coords
-            branch[2] = Helpers.randDoubleRange(structureRandom, Math.PI*0.45, Math.PI*0.3); // polar
-            branch[3] = Helpers.randDoubleRange(structureRandom, 0.0, Math.PI*2); // azimuthal
+            branch[2] = Helpers.randDoubleRange(structureRandom, Math.PI*0.3, Math.PI*0.45); // polar
+            branch[3] = Helpers.randDoubleRange(structureRandom, -Math.PI, Math.PI); // azimuthal
         }
 
         Arrays.sort(branchInfo, Comparator.comparingDouble(arr -> arr[0])); // Sort the branches from bottom to top
         final Cylinder[] cylinders = new Cylinder[nBranches*2+1];
         double currBaseRadius = trunkRadius;
         double lastHeight = 0.0;
+        /*
+        TODO
+            -Rough up trunks (craggly, irregular shapes)
+                *Perlin noise to deform trunk - Have the noise be "stretched" in the vertical direction
+            -Weighted branch generation - bias branches to opposite sides
+            -Curved branches (try parabolae, simple curves)
+            -Happens-after property for generation (ensure trunk is generated before branches)
+                *List of predecessors, and a "proximity" function - one that determines if the predecessor could impact
+                    the current cube.
+            -Passing a set of flags around between features, then having a final step that transforms those flags into
+                block placements.
+                * Probably need two bits for direction, one bit for air, one bit for wood.
+            -Proper branching
+            -Self-intersection avoidance
+            -Trunk should handle loss of thickness (due to branching) better - cone shaped? Maybe a bevel at the
+                branch's level? Perhaps the next trunk segment is offset, due to the branch splitting from it?
+            -Smoothing to connect branches with the trunk.
+            -Generation features:
+                *Branching branches - start to develop into proper tree
+                *Leaf placement.
+                *Knots
+                *Broken branches
+                *Roots - should influence trunk shape?
+            -Verify branches are actually being placed at correct heights.
+         */
         for (int i = 0; i < nBranches; i++) {
+            double[] branch = branchInfo[i];
             // Branch cylinder
-            cylinders[i] = new Cylinder(new BlockPos(trunkXCenter, trunkYCenter+trunkHeight*(branchInfo[i][0]), trunkZCenter),
-                    currBaseRadius*branchInfo[i][1], 300, branchInfo[i][2], branchInfo[i][3]);
+            cylinders[i] = new Cylinder(new BlockPos(trunkXCenter, trunkYCenter+trunkHeight*(branch[0]), trunkZCenter),
+                    currBaseRadius*branch[1], 300, branch[2], branch[3]);
             // Trunk segment
             cylinders[nBranches+i] = new Cylinder(
                     new BlockPos(trunkXCenter, trunkYCenter+trunkHeight*lastHeight, trunkZCenter),
-                    trunkRadius, trunkHeight*(branchInfo[i][1]-lastHeight), 0.0, 0.0);
-            currBaseRadius *= Math.sqrt(1-branchInfo[i][1]*branchInfo[i][1]);
-            lastHeight = branchInfo[i][0];
+                    currBaseRadius, trunkHeight*(branch[0]-lastHeight), 0.0, 0.0);
+            currBaseRadius *= Math.sqrt(1-branch[1]*branch[1]);
+            lastHeight = branch[0];
         }
+        cylinders[nBranches*2] = new Cylinder(
+                new BlockPos(trunkXCenter, trunkYCenter+trunkHeight*lastHeight, trunkZCenter),
+                trunkRadius, trunkHeight*(1.0-lastHeight), 0.0, 0.0);
+        ModYggdrasil.info("Tree for sector "+sectorX+","+sectorY+","+sectorZ+" created, with origin at "+cylinders[nBranches].origin);
         return new IntegerAABBTree(cylinders);
     }
 }

@@ -11,6 +11,7 @@ import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Blocks;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.Vec3i;
 
 public class Cylinder implements GenerationFeature {
     public final double radius, length, theta, phi;
@@ -22,20 +23,22 @@ public class Cylinder implements GenerationFeature {
      * @param origin
      * @param radius
      * @param length
-     * @param phi Angle of the cylinder relative to the +y axis. Should be 0<=phi<=PI
      * @param theta Angle of the cylinder relative to the +z axis, in the horizontal plane. Should be -PI<=theta<=PI
+     * @param phi Angle of the cylinder relative to the +y axis. Should be 0<=phi<=PI
      * @throws InvalidValueException
      */
-    public Cylinder(BlockPos origin, double radius, double length, double phi, double theta) throws InvalidValueException {
+    public Cylinder(BlockPos origin, double radius, double length, double theta, double phi) throws InvalidValueException {
         this.origin = origin;
         if (radius < 0) {
             throw new InvalidValueException("Cylinder received negative radius.");
         }
         this.radius = radius;
+
         if (length < 0) {
             throw new InvalidValueException("Cylinder received negative length.");
         }
         this.length = length;
+
         if (theta < 0) {
             throw new InvalidValueException("Cylinder received negative theta.");
         } else if (theta > Math.PI) {
@@ -49,9 +52,9 @@ public class Cylinder implements GenerationFeature {
         }
         this.phi = phi;
         unit = new Vec3d(
-                Math.cos(this.theta)*Math.cos(this.phi),
-                Math.sin(this.theta),
-                Math.cos(this.theta)*Math.sin(phi));
+                Math.sin(this.theta)*Math.sin(this.phi),
+                Math.cos(this.theta),
+                Math.sin(this.theta)*Math.cos(phi));
     }
 
     /**
@@ -151,20 +154,24 @@ public class Cylinder implements GenerationFeature {
         //  generators, which accrues the expected generation, which is then passed through a final step which actually
         //  generates the blocks in the cubePrimer.
         int bufferSize = ICube.SIZE+2;
+        // Buffer is 2 units bigger on all sides than the actual cube.
+        Vec3i cubeRay = pos.getMinBlockPos().subtract(origin).add(-1, -1, -1);
+        double radius2 = radius*radius;
         // Stores what should be at this position.
         byte[][][] buffer = new byte[bufferSize][bufferSize][bufferSize];
-        // TODO Use int[][] buffers instead, with the int value for a position storing both the
+        // TODO Use int[][] buffers instead, with the int value for an x-z position storing the value of a flag for all
+        //  y positions, and eac
         for (int x = 0; x < bufferSize; x++) {
-            double dx = x-origin.getX();
+            double dx = x+cubeRay.getX();
             double dx2 = dx*dx;
             for (int z = 0; z < bufferSize; z++) {
-                double dz = z-origin.getZ();
+                double dz = z+cubeRay.getZ();
                 double dz2 = dz*dz;
                 for (int y = 0; y < bufferSize; y++) {
-                    double dy = y-origin.getY();
+                    double dy = y+cubeRay.getY();
                     double dy2 = dy*dy;
                     double dot = dx*unit.x+dy*unit.y+dz*unit.z;
-                    if ((dx2+dy2+dz2)-dot*dot > radius) {
+                    if ((dx2+dy2+dz2)-dot*dot > radius2) {
                         buffer[x][z][y] = AIR;
                     }
                     else if (dot < 0 || dot > length) {

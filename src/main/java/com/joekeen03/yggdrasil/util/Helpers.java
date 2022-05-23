@@ -41,9 +41,17 @@ public class Helpers {
     public static <T> int arraySectionPartition(T[] arr, int sectionStart, int sectionStop,
                                                 int partitionValue, ToIntFunction<T> extractor) {
         int highIndex = sectionStop;
-        for (int lowIndex = 0; lowIndex < highIndex; lowIndex++) {
+        for (int lowIndex = sectionStart; lowIndex < highIndex; lowIndex++) {
             int leftVal = extractor.applyAsInt(arr[lowIndex]);
-            if (leftVal > partitionValue) { // Found a value that would go on the right side of the partition
+            if (leftVal >= partitionValue) { // Found a value that would go on the right side of the partition
+                // Note: I use >= AND <= on purpose. This is to handle cases where you only have values exactly
+                //  equal to the partition value; using equality to trigger swaps on both the high and low sides
+                //  causes the low and high indices to converge towards the middle index of the set of identical values.
+                //  If I only use equality for one of the value checks (low OR high), it runs into problems when the
+                //  only values in the subsection are identical to the partition value - the partition index it returns
+                //  is equal to either the sectionStart or the sectionStop, yielding partitions of size 0 and
+                //  sectionStop-sectionStart; considering I use the partition index to subdivide the array for
+                //  recursion in IntegerAABBTree::computeNode, that results in infinite recursion.
                 highIndex--; // This value is either out of bounds (sectionStop), or an element we already swapped.
                 for (; highIndex > lowIndex; highIndex--) {
                     // Find a value that would go on the left side of the partition, and swap it with the leftVal
