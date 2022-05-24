@@ -1,10 +1,7 @@
 package com.joekeen03.yggdrasil.world.structure;
 
 import com.joekeen03.yggdrasil.ModYggdrasil;
-import com.joekeen03.yggdrasil.util.Cylinder;
-import com.joekeen03.yggdrasil.util.GenerationFeature;
-import com.joekeen03.yggdrasil.util.Helpers;
-import com.joekeen03.yggdrasil.util.IntegerAABBTree;
+import com.joekeen03.yggdrasil.util.*;
 import io.github.opencubicchunks.cubicchunks.api.util.CubePos;
 import io.github.opencubicchunks.cubicchunks.api.world.ICube;
 import io.github.opencubicchunks.cubicchunks.api.worldgen.CubePrimer;
@@ -16,12 +13,13 @@ import net.minecraft.block.BlockPlanks;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Blocks;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
+import org.lwjgl.util.vector.Vector2f;
 
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.Random;
-import java.util.function.LongFunction;
 
 public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
     private static final int TREE_RATE = 5; // On average, 1 out of this many sectors will spawn a tree.
@@ -179,7 +177,7 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
         synchronized (treeCache) {
             // Manual computeIfAbsent, since Long2ObjectHashMap doesn't have one which takes LongFunction.
             if (!treeCache.containsKey(key)) {
-                treeCache.put(key, generateTree(structureRandom,
+                treeCache.put(key, createTree(structureRandom,
                         sectorX, sectorY, sectorZ));
             }
             return treeCache.get(key);
@@ -224,20 +222,40 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
         // - maybe should be influenced by height?
 
         final int nBranches = Helpers.randIntRange(structureRandom, (int)(trunkHeight/2/20*0.9), (int)(trunkHeight/2/20*1.1));
+        double[] branchHeights = new double[nBranches];
+        for (int i = 0; i < nBranches; i++) {
+            branchHeights[i] = Helpers.randDoubleRange(structureRandom, 0.5, 1.0);
+        }
+        Arrays.sort(branchHeights); // Sort the branches from bottom to top
+
+        // Cumulative bias of the branches - effectively, an average of the branches' azimuthal angles, and how strongly
+        //  they're biased towards that direction.
+        Vector2f bias = new Vector2f(0, 0);
+
         double[][] branchInfo = new double[nBranches][4];
         for (int i = 0; i < nBranches; i++) {
             double[] branch = branchInfo[i];
             // Where the branch is - maybe this should be weighted towards the top?
-            branch[0] = Helpers.randDoubleRange(structureRandom, 0.5, 1.0);
+            branch[0] = branchHeights[i];
             // Thickness relative to the trunk at that point - weighted so branches get thicker relative to the branch
             // as you go up
             branch[1] = Helpers.randDoubleRange(structureRandom, 0.1, branch[0]*1.6-0.6);
             // Angle the branch leaves the tree at, in spherical coords
             branch[2] = Helpers.randDoubleRange(structureRandom, Math.PI*0.3, Math.PI*0.45); // polar
-            branch[3] = Helpers.randDoubleRange(structureRandom, -Math.PI, Math.PI); // azimuthal
+
+            // How much the next branch's angle will be offset from the bias vector's angle.
+            double offset = 0.0;
+            // The more biased the branches are to one side, the more biased the next one will be to the opposite side.
+            int nRandom = (int) (bias.length()+1);
+            for (int j = 0; j < nRandom; j++) {
+                offset = Helpers.randDoubleRange(structureRandom, 0, Math.PI*2);
+            }
+            double azimuthal = (Math.atan2(bias.y, bias.x)+Math.PI+offset/nRandom)%(Math.PI*2) - Math.PI;
+            branch[3] = azimuthal; // azimuthal
+            // Add the current branch to the bias vector
+            bias.translate((float)Math.cos(azimuthal), (float) Math.sin(azimuthal));
         }
 
-        Arrays.sort(branchInfo, Comparator.comparingDouble(arr -> arr[0])); // Sort the branches from bottom to top
         final Cylinder[] cylinders = new Cylinder[nBranches*2+1];
         double currBaseRadius = trunkRadius;
         double lastHeight = 0.0;
@@ -245,7 +263,6 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
         TODO
             -Rough up trunks (craggly, irregular shapes)
                 *Perlin noise to deform trunk - Have the noise be "stretched" in the vertical direction
-            -Weighted branch generation - bias branches to opposite sides
             -Curved branches (try parabolae, simple curves)
             -Happens-after property for generation (ensure trunk is generated before branches)
                 *List of predecessors, and a "proximity" function - one that determines if the predecessor could impact
@@ -283,5 +300,101 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
                 trunkRadius, trunkHeight*(1.0-lastHeight), 0.0, 0.0);
         ModYggdrasil.info("Tree for sector "+sectorX+","+sectorY+","+sectorZ+" created, with origin at "+cylinders[nBranches].origin);
         return new IntegerAABBTree(cylinders);
+    }
+
+    // Using the tree generation model laid out in "Creation and Rendering of Realistic Trees", by Jason Weber and
+    //  Joseph Penn.
+    // Note that their system uses an axes system where the z axis is the "vertical" axis for the trunk, and the x and
+    //  y axes form the horizontal plane. Branch segments (and technically trunk segments, too) each have their own
+    //  local coord system, with the z-axis in line with the segment, the x-axis restricted to the horizontal plane,
+    //  and the y-axis pointed as close to vertical as it can get, given the segment's orientation.
+    // I'm going to say the absolute axes within tree-space (the ones all the other axes are transformations of)
+    //  correspond to MC's coord system as follows: z_tree -> y_MC, x_tree -> z_MC, y_tree -> x_MC
+
+    // 0-level (trunk) parameters
+    private final static double baseScale = 1.0;
+    private final static double baseScaleVariation = 0.1;
+    private final static double ratio = 0.1;
+    private final static double length_0 = 1500;
+    private final static double lengthVariation_0 = 500;
+    private final static double curve_0 = Math.toRadians(30);
+    private final static double curveVariation_0 = Math.toRadians(10); // Could be varied based on length (*)
+    private final static int curveResolution_0 = 10;
+    private final static double curveBack_0 = 0;
+    private final static double scale_0 = 1.0;
+    private final static double taper_0 = 1.0;
+    // * Would impact other parameters such as splitting rates.
+
+    protected static IntegerAABBTree createTree(Random treeRandom, int sectorX, int sectoryY, int sectorZ) {
+        // Generate trunk - recursive level 0
+
+        Vec3d trunkOrigin = new Vec3d(treeRandom.nextInt(xzSectorSize)+sectorX*xzSectorSize, 48,
+                treeRandom.nextInt(xzSectorSize)+sectorZ*xzSectorSize);
+
+        // Trunk's initial segment is aligned with the absolute z-axis. Maybe play with trunks that don't start vertical?
+        Vec3d zUnit = new Vec3d(0, 0, 1);
+        // Angle the trunk's x-axis is relative to the absolute axes. Needed, b/c rotations are generally about the x-axis
+        double xAngle = Helpers.randDoubleRange(treeRandom, -Math.PI, Math.PI);
+        Vec3d xUnit = new Vec3d(Math.cos(xAngle), Math.sin(xAngle), 0);
+
+        double treeScale = baseScale + randDoubleVariation(treeRandom, baseScaleVariation);
+        double length = (length_0 + randDoubleVariation(treeRandom, lengthVariation_0)) * treeScale;
+        double stemRadius = length*scale_0*ratio;
+
+        ArrayList<GenerationFeature> generationFeatures = new ArrayList<>(3000);
+        // FIXME - Reference stores segments as nearly-circular circles between each segment, which it then connects
+        //  to create an intermediate mesh; can this be adapted to work with my tapered cylinder segments?
+        //  Each cylinder segment would also need to store the cut angles for the ends.
+        //  I mean, I can "easily" represent the segments as tapered cylinders, so it's really a question of, is there
+        //  any benefit to storing the segments as the start/stop circles, instead?
+        //  Maybe not so easy to represent the segments as tapered cyilinders...there does seem to be a reason they
+        //  store segments as the cross-sections
+        //  Options:
+        //      -Store circular cross-sections, figure out a way to stretch between them
+        //          How to do the "stretching"?
+        //          Not doing this
+        //      -Store tapered cylinders
+        //          Simple, probably use this to get the algorithm working.
+        //      -Store cones with the ends sliced off by flat planes
+        //          Cylinders will join seamlessly, a bit more involved than the tapered cylinders
+        //      -Store as curved, tapered cylinders.
+        //          Fairly seamless, but no idea how to handle these. Also, might look too smooth?
+        //          Probably go with this ultimately.
+        //  And then how would I handle branches?
+        //      The way the paper seems to handle them is by just placing the first cross-section for each branch where
+        //      it should be (?), then stretching a mess from each branch's cross-section to the base; i.e., each branch
+        //      is just my truncated cones idea, and they just join in the middle. Just do that, or would I want some
+        //      way to handle this with my curved cylinders?
+        double lengthFraction = length/curveResolution_0;
+        double unit_taper;
+        if (taper_0 < 0) {
+            throw new InvalidValueException("taper_0 cannot be negative.");
+        } else if (taper_0 <= 1) {
+            unit_taper = taper_0;
+        } else if (taper_0 > 1) {
+            throw new InvalidValueException("Program does not currently handle taper values greater than 1.");
+        }
+
+        Vec3d currZUnit = zUnit;
+        double prevRadiusZ = stemRadius;
+        for (int i = 0; i < curveResolution_0; i++) {
+            double taperZ = stemRadius*(1-(unit_taper*i)/curveResolution_0);
+            double radiusZ = taperZ;
+            TaperedCylinder segment = new TaperedCylinder(trunkOrigin, prevRadiusZ, radiusZ, lengthFraction, currZUnit);
+            generationFeatures.add(segment);
+
+            prevRadiusZ = radiusZ;
+            Vec3d cross = xUnit.crossProduct(currZUnit);
+            double theta = curve_0+randDoubleVariation(treeRandom, curveVariation_0);
+            currZUnit = currZUnit.scale(Math.cos(theta)).add(cross.scale(Math.sin(theta))); // Rotate next z-vector
+        }
+
+        return new IntegerAABBTree(generationFeatures.toArray(new GenerationFeature[0]));
+    }
+
+    protected static double randDoubleVariation(Random random, double variation) {
+        // Is the variation supposed to be any value in the range [-variation, variation], or is it just supposed to be
+        //  +/- variation (random sign, fixed magnitude)?
+        return Helpers.randDoubleRange(random, -variation, variation);
     }
 }
