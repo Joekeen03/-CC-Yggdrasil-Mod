@@ -48,7 +48,7 @@ public class TaperedCylinder implements GenerationFeature {
     @Override
     public IntegerMinimumAABB getMinimumBoundingBox() {
         // Compute theta and phi so I can use the basic cylinder code.
-        double theta = Math.atan2(unit.y, Math.sqrt(unit.z*unit.z+unit.x*unit.x));
+        double theta = Math.PI/2-Math.atan2(unit.y, Math.sqrt(unit.z*unit.z+unit.x*unit.x));
         double phi = Math.atan2(unit.x, unit.z);
 
         // Same code as the original cylinder.
@@ -62,9 +62,9 @@ public class TaperedCylinder implements GenerationFeature {
         double ellipsePhi = phi-Math.PI/2;
         double ellipseZt = Math.atan2(-b*Math.sin(ellipsePhi),a*Math.cos(ellipsePhi));
         double ellipseXt = Math.atan2(b*Math.cos(ellipsePhi),a*Math.sin(ellipsePhi));
-        double ellipseExtentZ = xSign * Math.abs(a*Math.cos(ellipsePhi)*Math.cos(ellipseZt)
+        double ellipseExtentZ = zSign * Math.abs(a*Math.cos(ellipsePhi)*Math.cos(ellipseZt)
                 - b*Math.sin(ellipsePhi)*Math.sin(ellipseZt));
-        double ellipseExtentX = zSign * Math.abs(a*Math.sin(ellipsePhi)*Math.cos(ellipseXt)
+        double ellipseExtentX = xSign * Math.abs(a*Math.sin(ellipsePhi)*Math.cos(ellipseXt)
                 + b*Math.cos(ellipsePhi)*Math.sin(ellipseXt));
 
         // Just use the larger radius for both ends - not too inaccurate for our purposes.
@@ -150,7 +150,7 @@ public class TaperedCylinder implements GenerationFeature {
             }
         }
         // Whichever direction the branch is going in.
-        BlockLog.EnumAxis axis = (Math.abs(unit.y) > sqrt2) ? BlockLog.EnumAxis.Y
+        BlockLog.EnumAxis axis = (Math.abs(unit.y) > sqrt2/2) ? BlockLog.EnumAxis.Y
                 : (Math.abs(unit.z) > Math.abs(unit.x)) ? BlockLog.EnumAxis.Z : BlockLog.EnumAxis.X;
         IBlockState[] blockArray = new IBlockState[] {null, null,
                 Blocks.LOG.getDefaultState().withProperty(BlockOldLog.VARIANT, BlockPlanks.EnumType.OAK)

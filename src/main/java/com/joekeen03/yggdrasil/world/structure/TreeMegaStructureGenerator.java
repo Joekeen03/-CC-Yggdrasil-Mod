@@ -177,6 +177,7 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
         synchronized (treeCache) {
             // Manual computeIfAbsent, since Long2ObjectHashMap doesn't have one which takes LongFunction.
             if (!treeCache.containsKey(key)) {
+                ModYggdrasil.info("Creating tree at sector "+sectorX+","+sectorY+","+sectorZ);
                 treeCache.put(key, createTree(structureRandom,
                         sectorX, sectorY, sectorZ));
             }
@@ -213,7 +214,6 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
     }
 
     protected static IntegerAABBTree generateTree(Random structureRandom, int sectorX, int sectorY, int sectorZ) {
-        ModYggdrasil.info("Creating tree at sector "+sectorX+","+sectorY+","+sectorZ);
         final int trunkXCenter = structureRandom.nextInt(xzSectorSize)+sectorX*xzSectorSize;
         final int trunkYCenter = 48;
         final int trunkZCenter = structureRandom.nextInt(xzSectorSize)+sectorZ*xzSectorSize;
@@ -309,7 +309,7 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
     //  local coord system, with the z-axis in line with the segment, the x-axis restricted to the horizontal plane,
     //  and the y-axis pointed as close to vertical as it can get, given the segment's orientation.
     // I'm going to say the absolute axes within tree-space (the ones all the other axes are transformations of)
-    //  correspond to MC's coord system as follows: z_tree -> y_MC, x_tree -> z_MC, y_tree -> x_MC
+    //  correspond to MC's coord system as follows: x_tree -> z_MC, y_tree -> x_MC, z_tree -> y_MC
 
     // 0-level (trunk) parameters
     private final static double baseScale = 1.0;
@@ -317,19 +317,19 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
     private final static double ratio = 0.1;
     private final static double length_0 = 1500;
     private final static double lengthVariation_0 = 500;
-    private final static double curve_0 = Math.toRadians(30);
-    private final static double curveVariation_0 = Math.toRadians(10); // Could be varied based on length (*)
+    private final static double curve_0 = Math.toRadians(5);
+    private final static double curveVariation_0 = Math.toRadians(5); // Could be varied based on length (*)
     private final static int curveResolution_0 = 10;
-    private final static double curveBack_0 = 0;
+    private final static double curveBack_0 = Math.toRadians(0);
     private final static double scale_0 = 1.0;
     private final static double taper_0 = 1.0;
     // * Would impact other parameters such as splitting rates.
 
-    protected static IntegerAABBTree createTree(Random treeRandom, int sectorX, int sectoryY, int sectorZ) {
+    protected static IntegerAABBTree createTree(Random treeRandom, int sectorX, int sectorY, int sectorZ) {
         // Generate trunk - recursive level 0
 
-        Vec3d trunkOrigin = new Vec3d(treeRandom.nextInt(xzSectorSize)+sectorX*xzSectorSize, 48,
-                treeRandom.nextInt(xzSectorSize)+sectorZ*xzSectorSize);
+        Vec3d trunkOrigin = minecraftToStemVector(new Vec3d(treeRandom.nextInt(xzSectorSize)+sectorX*xzSectorSize,
+                48, treeRandom.nextInt(xzSectorSize)+sectorZ*xzSectorSize));
 
         // Trunk's initial segment is aligned with the absolute z-axis. Maybe play with trunks that don't start vertical?
         Vec3d zUnit = new Vec3d(0, 0, 1);
@@ -376,19 +376,23 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
         }
 
         Vec3d currZUnit = zUnit;
+        Vec3d currOrigin = trunkOrigin;
         double prevRadiusZ = stemRadius;
         for (int i = 0; i < curveResolution_0; i++) {
-            double taperZ = stemRadius*(1-(unit_taper*i)/curveResolution_0);
+            double taperZ = stemRadius*(1-unit_taper*((double) i+1)/curveResolution_0);
             double radiusZ = taperZ;
-            TaperedCylinder segment = new TaperedCylinder(trunkOrigin, prevRadiusZ, radiusZ, lengthFraction, currZUnit);
+
+            TaperedCylinder segment = new TaperedCylinder(stemToMinecraftVector(currOrigin),
+                    prevRadiusZ, radiusZ, lengthFraction, stemToMinecraftVector(currZUnit));
             generationFeatures.add(segment);
 
+            currOrigin = currOrigin.add(currZUnit.scale(lengthFraction));
             prevRadiusZ = radiusZ;
             Vec3d cross = xUnit.crossProduct(currZUnit);
             double theta = curve_0+randDoubleVariation(treeRandom, curveVariation_0);
             currZUnit = currZUnit.scale(Math.cos(theta)).add(cross.scale(Math.sin(theta))); // Rotate next z-vector
         }
-
+        ModYggdrasil.info("Tree for sector "+sectorX+","+sectorY+","+sectorZ+" created, with origin at "+trunkOrigin);
         return new IntegerAABBTree(generationFeatures.toArray(new GenerationFeature[0]));
     }
 
@@ -396,5 +400,13 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
         // Is the variation supposed to be any value in the range [-variation, variation], or is it just supposed to be
         //  +/- variation (random sign, fixed magnitude)?
         return Helpers.randDoubleRange(random, -variation, variation);
+    }
+
+    protected static Vec3d stemToMinecraftVector(Vec3d stemVector) {
+        return new Vec3d(stemVector.y, stemVector.z, stemVector.x);
+    }
+
+    protected static Vec3d minecraftToStemVector(Vec3d mcVector) {
+        return new Vec3d(mcVector.z, mcVector.x, mcVector.y);
     }
 }

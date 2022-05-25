@@ -100,9 +100,9 @@ public class Cylinder implements GenerationFeature {
         double ellipsePhi = phi-Math.PI/2;
         double ellipseZt = Math.atan2(-b*Math.sin(ellipsePhi),a*Math.cos(ellipsePhi));
         double ellipseXt = Math.atan2(b*Math.cos(ellipsePhi),a*Math.sin(ellipsePhi));
-        double ellipseExtentZ = xSign * Math.abs(a*Math.cos(ellipsePhi)*Math.cos(ellipseZt)
+        double ellipseExtentZ = zSign * Math.abs(a*Math.cos(ellipsePhi)*Math.cos(ellipseZt)
                 - b*Math.sin(ellipsePhi)*Math.sin(ellipseZt));
-        double ellipseExtentX = zSign * Math.abs(a*Math.sin(ellipsePhi)*Math.cos(ellipseXt)
+        double ellipseExtentX = xSign * Math.abs(a*Math.sin(ellipsePhi)*Math.cos(ellipseXt)
                 + b*Math.cos(ellipsePhi)*Math.sin(ellipseXt));
 
         double y1 = lengthYComponent+Math.sin(theta)*radius*ySign+origin.getY();
