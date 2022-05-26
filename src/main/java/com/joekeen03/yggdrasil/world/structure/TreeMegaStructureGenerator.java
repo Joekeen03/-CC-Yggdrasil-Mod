@@ -312,17 +312,23 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
     //  correspond to MC's coord system as follows: x_tree -> z_MC, y_tree -> x_MC, z_tree -> y_MC
 
     // 0-level (trunk) parameters
-    private final static double baseScale = 1.0;
-    private final static double baseScaleVariation = 0.1;
-    private final static double ratio = 0.1;
-    private final static double length_0 = 1500;
-    private final static double lengthVariation_0 = 500;
-    private final static double curve_0 = Math.toRadians(5);
-    private final static double curveVariation_0 = Math.toRadians(5); // Could be varied based on length (*)
-    private final static int curveResolution_0 = 10;
-    private final static double curveBack_0 = Math.toRadians(0);
-    private final static double scale_0 = 1.0;
-    private final static double taper_0 = 1.0;
+    private static final double baseScale = 1.0;
+    private static final double baseScaleVariation = 0.1;
+    private static final double ratio = 0.1;
+    private static final double length_0 = 1500;
+    private static final double lengthVariation_0 = 500;
+    private static final double curve_0 = Math.toRadians(5);
+    private static final double curveVariation_0 = Math.toRadians(5); // Could be varied based on length (*)
+    private static final int curveResolution_0 = 10;
+    private static final double curveBack_0 = Math.toRadians(0);
+    private static final double scale_0 = 1.0;
+    private static final double taper_0 = 1.0;
+    private static final double segmentSplits_0 = 0.5;
+    private static final double baseSplits_0 = 2;
+    private static final double splitAngle_0 = Math.toRadians(30);
+    private static final double splitAngleVariation_0 = Math.toRadians(20);
+
+    private static double segSplitsError_0 = 0.0;
     // * Would impact other parameters such as splitting rates.
 
     protected static IntegerAABBTree createTree(Random treeRandom, int sectorX, int sectorY, int sectorZ) {
@@ -332,7 +338,7 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
                 48, treeRandom.nextInt(xzSectorSize)+sectorZ*xzSectorSize));
 
         // Trunk's initial segment is aligned with the absolute z-axis. Maybe play with trunks that don't start vertical?
-        StemVec3d zUnit = new StemVec3d(0, 0, 1);
+        StemVec3d zUnitOrigin = new StemVec3d(0, 0, 1);
         // Angle the trunk's x-axis is, relative to the absolute axes. Needed, b/c rotations are generally about the x-axis
         double xAngle = Helpers.randDoubleRange(treeRandom, -Math.PI, Math.PI);
         StemVec3d xUnit = new StemVec3d(Math.cos(xAngle), Math.sin(xAngle), 0);
@@ -375,17 +381,27 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
             throw new InvalidValueException("Program does not currently handle taper values greater than 1.");
         }
 
-        StemVec3d currZUnit = zUnit;
+        StemVec3d currZUnit = zUnitOrigin;
         StemVec3d currOrigin = trunkOrigin;
-        StemVec3d plane1Unit = zUnit;
+        StemVec3d plane1Unit = zUnitOrigin;
         double prevRadiusZ = stemRadius;
         for (int i = 0; i < curveResolution_0; i++) {
+            if (i == 0) {
+                // FIXME What does Math.round mean by "ties round to positive infinity"?
+                int baseSplitsEffective_0 = (int)Math.round(baseSplits_0 + segSplitsError_0);
+                segSplitsError_0 = baseSplitsEffective_0-baseSplits_0;
+                double declinationAngle = Math.acos(zUnitOrigin.dotProduct(currZUnit));
+                int nBranches = baseSplitsEffective_0 + 1;
+                double[] anglesSplit = new double[nBranches];
+                for (int j = 0; j < nBranches; j++) {
+                    anglesSplit[i] = Math.max(splitAngle_0+randDoubleVariation(treeRandom, splitAngleVariation_0) - declinationAngle, 0);
+                }
+            }
             double taperZ = stemRadius*(1-unit_taper*((double) i+1)/curveResolution_0);
             double radiusZ = taperZ;
             double theta = curve_0+randDoubleVariation(treeRandom, curveVariation_0);
             // Intersecting plane between this segment and the next. plane2Unit for curr segment is just this scaled by -1
             StemVec3d nextPlane1Unit = xUnit.rotateUnitVector(currZUnit, theta/2);
-
 
             DoubleTruncatedCone segment = new DoubleTruncatedCone(
                     currOrigin.toMCVector(), currZUnit.toMCVector(),
