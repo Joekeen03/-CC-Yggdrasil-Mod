@@ -94,7 +94,7 @@ public class Cylinder implements GenerationFeature {
         //  be aligned with the z-axis, which is pi/2 (90 degrees) off from the standard form. Hence, a pi/2 offset for
         //  phi
         double xSign = (phi >= 0) ? 1 : -1;
-        double zSign = (Math.abs(phi) > Math.PI/2) ? 1 : -1;
+        double zSign = (Math.abs(phi) < Math.PI/2) ? 1 : -1;
         double a = radius;
         double b = Math.abs(radius*Math.cos(theta));
         double ellipsePhi = phi-Math.PI/2;

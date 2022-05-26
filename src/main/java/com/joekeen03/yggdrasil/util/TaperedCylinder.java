@@ -40,8 +40,8 @@ public class TaperedCylinder implements GenerationFeature {
         //  cube's point, the actual closest point on the cone, and the point where the radial vector to the point
         //  intersects the cone. Radial vector just being the vector perpendicular to the cone's axis which intersects
         //  the cube's point.
-        this.coneSlope = (radius1-radius2)/length;
-        double coneAngle = Math.atan(coneSlope);
+        this.coneSlope = length/(radius1-radius2); // Slope = rise (length) over run (radius)
+        double coneAngle = Math.atan2(radius1-radius2, length);
         this.cubeDistance = 8 * Math.sqrt(3) / Math.cos(coneAngle);
     }
 
@@ -56,7 +56,7 @@ public class TaperedCylinder implements GenerationFeature {
         double lengthYComponent = length*unit.y;
         double lengthHorizontalComponent = Math.sin(theta)*length;
         double xSign = (phi >= 0) ? 1 : -1;
-        double zSign = (Math.abs(phi) > Math.PI/2) ? 1 : -1;
+        double zSign = (Math.abs(phi) < Math.PI/2) ? 1 : -1;
         double a = radius1;
         double b = Math.abs(radius1*Math.cos(theta));
         double ellipsePhi = phi-Math.PI/2;
@@ -94,7 +94,7 @@ public class TaperedCylinder implements GenerationFeature {
         if ((dot >= 0) && (dot <= length)) {
             // cube vector's radial distance from cone's axis, squared
             double radial2 = cubeVector.lengthSquared()-dot*dot;
-            double currRadius = radius1-dot*coneSlope;
+            double currRadius = radius1-dot/coneSlope;
 
             // Treat cube as a sphere which fully encompasses it.
             if (radial2 <= (currRadius+cubeDistance)*(currRadius+cubeDistance)) {
@@ -136,7 +136,7 @@ public class TaperedCylinder implements GenerationFeature {
                     double dy = y+cubeRay.y;
                     double dy2 = dy*dy;
                     double dot = dx*unit.x+dy*unit.y+dz*unit.z;
-                    double currRadius = radius1-dot*coneSlope;
+                    double currRadius = radius1-dot/coneSlope;
                     if ((dx2+dy2+dz2)-dot*dot > currRadius*currRadius) {
                         buffer[x][z][y] = AIR;
                     }

@@ -1,6 +1,7 @@
 package com.joekeen03.yggdrasil.util;
 
 import io.github.opencubicchunks.cubicchunks.api.util.CubePos;
+import net.minecraft.util.math.Vec3d;
 
 public class IntegerAABB{
     public final int minX, maxX, minY, maxY, minZ, maxZ, lengthX, lengthY, lengthZ;
@@ -17,9 +18,9 @@ public class IntegerAABB{
         maxY = Math.max(y1, y2);
         minZ = Math.min(z1, z2);
         maxZ = Math.max(z1, z2);
-        lengthX = maxX-minX;
-        lengthY = maxY-minY;
-        lengthZ = maxZ-minZ;
+        lengthX = maxX-minX+1;
+        lengthY = maxY-minY+1;
+        lengthZ = maxZ-minZ+1;
         /*
         Since the whole point of this bounding box and the tree it's part of is to be able to quickly exclude, should
         this also hold the shape it's supposed to wrap? Or should it be something the shape stores, given it's the shape
@@ -38,15 +39,31 @@ public class IntegerAABB{
 
     /**
      * Returns whether the specified point is in the bounding box.
+     * @return
+     */
+    public boolean isInBoundingBox (CubePos pos) {
+        return isInBoundingBox(pos.getX(), pos.getY(), pos.getZ());
+    }
+
+    /**
+     * Returns whether the specified point is in the bounding box.
+     * @return
+     */
+    public boolean isInBoundingBox (Vec3d pos) {
+        return isInBoundingBox((int)pos.x, (int)pos.y, (int)pos.z);
+    }
+
+    /**
+     * Returns whether the specified point is in the bounding box.
      * @param x
      * @param y
      * @param z
      * @return
      */
-    public boolean isInBoundingBox (CubePos pos) {
-        return ((pos.getX() >= minX) && (pos.getX() < maxX)
-                && (pos.getY() >= minY) && (pos.getY() < maxY)
-                && (pos.getZ() >= minZ) && (pos.getZ() < maxZ));
+    public boolean isInBoundingBox (int x, int y, int z) {
+        return ((x >= minX) && (x <= maxX)
+                && (y >= minY) && (y <= maxY)
+                && (z >= minZ) && (z <= maxZ));
     }
 
     public int getMaxX() {

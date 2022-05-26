@@ -1,5 +1,8 @@
 package com.joekeen03.yggdrasil.util;
 
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.Vec3i;
+
 import java.util.Random;
 import java.util.function.ToIntFunction;
 
@@ -85,5 +88,21 @@ public class Helpers {
 
     public static double randDoubleRange(Random rand, double min, double max) {
         return rand.nextDouble()*(max-min)+min;
+    }
+
+    public static double dotProduct(Vec3d vec, double x, double y, double z) {
+        return vec.x*x + vec.y*y + vec.z*z;
+    }
+
+    /**
+     * Rotates a unit vector about another unit vector, by an angle theta. Assumes the unit vectors are perpendicular.
+     * @param zUnit
+     * @param xUnit
+     * @param theta
+     * @return
+     */
+    public static Vec3d rotateUnitVector(Vec3d zUnit, Vec3d xUnit, double theta) {
+        Vec3d cross = xUnit.crossProduct(zUnit);
+        return zUnit.scale(Math.cos(theta)).add(cross.scale(Math.sin(theta))); // Rotate next z-vector
     }
 }

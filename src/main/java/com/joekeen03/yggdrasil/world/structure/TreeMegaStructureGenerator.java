@@ -377,22 +377,39 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
 
         Vec3d currZUnit = zUnit;
         Vec3d currOrigin = trunkOrigin;
+        Vec3d plane1Unit = zUnit;
         double prevRadiusZ = stemRadius;
         for (int i = 0; i < curveResolution_0; i++) {
             double taperZ = stemRadius*(1-unit_taper*((double) i+1)/curveResolution_0);
             double radiusZ = taperZ;
+            double theta = curve_0+randDoubleVariation(treeRandom, curveVariation_0);
+            // Intersecting plane between this segment and the next. plane2Unit for curr segment is just this scaled by -1
+            Vec3d nextPlane1Unit = Helpers.rotateUnitVector(currZUnit, xUnit, theta/2);
 
-            TaperedCylinder segment = new TaperedCylinder(stemToMinecraftVector(currOrigin),
-                    prevRadiusZ, radiusZ, lengthFraction, stemToMinecraftVector(currZUnit));
+
+            DoubleTruncatedCone segment = new DoubleTruncatedCone(
+                    stemToMinecraftVector(currOrigin), stemToMinecraftVector(currZUnit),
+                    stemToMinecraftVector(plane1Unit), stemToMinecraftVector(nextPlane1Unit.scale(-1)),
+                    prevRadiusZ, radiusZ, lengthFraction);
             generationFeatures.add(segment);
 
-            currOrigin = currOrigin.add(currZUnit.scale(lengthFraction));
+            // Shift the next conical segment's origin down the line of max slope on the plane, to ensure its elliptical
+            //  end lines up with the current segment's elliptical end.
+            Vec3d planeVec = xUnit.crossProduct(nextPlane1Unit);
+            double coneSlope = lengthFraction/(radiusZ-prevRadiusZ);
+            double planeMaxSlope = Math.tan(theta/2);
+            double rMin = radiusZ*coneSlope/(coneSlope-planeMaxSlope);
+            double rMax = radiusZ*coneSlope/(coneSlope+planeMaxSlope);
+            double deltaR = rMax-rMin;
+            double deltaH = planeMaxSlope*deltaR;
+            double planeShift = Math.sqrt(deltaR*deltaR+deltaH*deltaH);
+
+            currOrigin = currOrigin.add(currZUnit.scale(lengthFraction)).add(planeVec.scale(planeShift));
             prevRadiusZ = radiusZ;
-            Vec3d cross = xUnit.crossProduct(currZUnit);
-            double theta = curve_0+randDoubleVariation(treeRandom, curveVariation_0);
-            currZUnit = currZUnit.scale(Math.cos(theta)).add(cross.scale(Math.sin(theta))); // Rotate next z-vector
+            plane1Unit = nextPlane1Unit;
+            currZUnit = Helpers.rotateUnitVector(currZUnit, xUnit, theta); // Rotate next z-vector
         }
-        ModYggdrasil.info("Tree for sector "+sectorX+","+sectorY+","+sectorZ+" created, with origin at "+trunkOrigin);
+        ModYggdrasil.info("Tree for sector "+sectorX+","+sectorY+","+sectorZ+" created, with origin at "+stemToMinecraftVector(trunkOrigin));
         return new IntegerAABBTree(generationFeatures.toArray(new GenerationFeature[0]));
     }
 
