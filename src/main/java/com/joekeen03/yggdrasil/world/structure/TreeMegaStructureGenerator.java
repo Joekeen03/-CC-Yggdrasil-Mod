@@ -328,14 +328,14 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
     protected static IntegerAABBTree createTree(Random treeRandom, int sectorX, int sectorY, int sectorZ) {
         // Generate trunk - recursive level 0
 
-        Vec3d trunkOrigin = minecraftToStemVector(new Vec3d(treeRandom.nextInt(xzSectorSize)+sectorX*xzSectorSize,
+        StemVec3d trunkOrigin = new StemVec3d(new Vec3d(treeRandom.nextInt(xzSectorSize)+sectorX*xzSectorSize,
                 48, treeRandom.nextInt(xzSectorSize)+sectorZ*xzSectorSize));
 
         // Trunk's initial segment is aligned with the absolute z-axis. Maybe play with trunks that don't start vertical?
-        Vec3d zUnit = new Vec3d(0, 0, 1);
-        // Angle the trunk's x-axis is relative to the absolute axes. Needed, b/c rotations are generally about the x-axis
+        StemVec3d zUnit = new StemVec3d(0, 0, 1);
+        // Angle the trunk's x-axis is, relative to the absolute axes. Needed, b/c rotations are generally about the x-axis
         double xAngle = Helpers.randDoubleRange(treeRandom, -Math.PI, Math.PI);
-        Vec3d xUnit = new Vec3d(Math.cos(xAngle), Math.sin(xAngle), 0);
+        StemVec3d xUnit = new StemVec3d(Math.cos(xAngle), Math.sin(xAngle), 0);
 
         double treeScale = baseScale + randDoubleVariation(treeRandom, baseScaleVariation);
         double length = (length_0 + randDoubleVariation(treeRandom, lengthVariation_0)) * treeScale;
@@ -375,27 +375,27 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
             throw new InvalidValueException("Program does not currently handle taper values greater than 1.");
         }
 
-        Vec3d currZUnit = zUnit;
-        Vec3d currOrigin = trunkOrigin;
-        Vec3d plane1Unit = zUnit;
+        StemVec3d currZUnit = zUnit;
+        StemVec3d currOrigin = trunkOrigin;
+        StemVec3d plane1Unit = zUnit;
         double prevRadiusZ = stemRadius;
         for (int i = 0; i < curveResolution_0; i++) {
             double taperZ = stemRadius*(1-unit_taper*((double) i+1)/curveResolution_0);
             double radiusZ = taperZ;
             double theta = curve_0+randDoubleVariation(treeRandom, curveVariation_0);
             // Intersecting plane between this segment and the next. plane2Unit for curr segment is just this scaled by -1
-            Vec3d nextPlane1Unit = Helpers.rotateUnitVector(currZUnit, xUnit, theta/2);
+            StemVec3d nextPlane1Unit = xUnit.rotateUnitVector(currZUnit, theta/2);
 
 
             DoubleTruncatedCone segment = new DoubleTruncatedCone(
-                    stemToMinecraftVector(currOrigin), stemToMinecraftVector(currZUnit),
-                    stemToMinecraftVector(plane1Unit), stemToMinecraftVector(nextPlane1Unit.scale(-1)),
+                    currOrigin.toMCVector(), currZUnit.toMCVector(),
+                    plane1Unit.toMCVector(), nextPlane1Unit.scale(-1).toMCVector(),
                     prevRadiusZ, radiusZ, lengthFraction);
             generationFeatures.add(segment);
 
             // Shift the next conical segment's origin down the line of max slope on the plane, to ensure its elliptical
             //  end lines up with the current segment's elliptical end.
-            Vec3d planeVec = xUnit.crossProduct(nextPlane1Unit);
+            StemVec3d planeVec = xUnit.crossProduct(nextPlane1Unit);
             double coneSlope = lengthFraction/(radiusZ-prevRadiusZ);
             double planeMaxSlope = Math.tan(theta/2);
             double rMin = radiusZ*coneSlope/(coneSlope-planeMaxSlope);
@@ -407,9 +407,9 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
             currOrigin = currOrigin.add(currZUnit.scale(lengthFraction)).add(planeVec.scale(planeShift));
             prevRadiusZ = radiusZ;
             plane1Unit = nextPlane1Unit;
-            currZUnit = Helpers.rotateUnitVector(currZUnit, xUnit, theta); // Rotate next z-vector
+            currZUnit = xUnit.rotateUnitVector(currZUnit, theta); // Rotate next z-vector
         }
-        ModYggdrasil.info("Tree for sector "+sectorX+","+sectorY+","+sectorZ+" created, with origin at "+stemToMinecraftVector(trunkOrigin));
+        ModYggdrasil.info("Tree for sector "+sectorX+","+sectorY+","+sectorZ+" created, with origin at "+trunkOrigin.toMCVector());
         return new IntegerAABBTree(generationFeatures.toArray(new GenerationFeature[0]));
     }
 
@@ -417,13 +417,5 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
         // Is the variation supposed to be any value in the range [-variation, variation], or is it just supposed to be
         //  +/- variation (random sign, fixed magnitude)?
         return Helpers.randDoubleRange(random, -variation, variation);
-    }
-
-    protected static Vec3d stemToMinecraftVector(Vec3d stemVector) {
-        return new Vec3d(stemVector.y, stemVector.z, stemVector.x);
-    }
-
-    protected static Vec3d minecraftToStemVector(Vec3d mcVector) {
-        return new Vec3d(mcVector.z, mcVector.x, mcVector.y);
     }
 }
