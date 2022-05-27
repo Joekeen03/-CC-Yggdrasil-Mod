@@ -12,19 +12,21 @@ import net.minecraft.init.Blocks;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.math.Vec3i;
 
+import java.util.function.ToDoubleFunction;
+
 import static com.joekeen03.yggdrasil.util.TaperedCylinder.sqrt2;
 
 /**
- * Represents a cone that is truncated by one plane on the larger end, and by N planes on the smaller end, where N>=1.
+ * Represents a cone that is truncated by M planes on the larger end, and by N planes on the smaller end, where M>=1 and N>=1
  */
-public class OneNTruncatedCone implements GenerationFeature {
-    private final Vec3d origin, coneEndOrigin, coneUnit, plane1Unit;
-    private final Vec3d[] plane2Units;
+public class MNTruncatedCone implements GenerationFeature {
+    private final Vec3d origin, coneEndOrigin, coneUnit, coneVector;
+    private final Vec3d[] plane1Units, plane2Units;
     private final double radius1, radius2, length, coneSlope, cubeDistance;
     private static final boolean DEBUG = true;
 
-    public OneNTruncatedCone(Vec3d origin, Vec3d coneUnit, Vec3d plane1Unit, Vec3d[] plane2Units,
-                               double radius1, double radius2, double length) {
+    public MNTruncatedCone(Vec3d origin, Vec3d coneUnit, Vec3d[] plane1Units, Vec3d[] plane2Units,
+                           double radius1, double radius2, double length) {
         if (radius2 < 0) {
             throw new InvalidValueException("DoubleTruncatedCone received negative second radius.");
         }
@@ -40,9 +42,13 @@ public class OneNTruncatedCone implements GenerationFeature {
         double coneAngle = Math.atan2(radius1-radius2, length);
         double minUnit1Angle = Math.PI/2-coneAngle;
         double maxUnit2Angle = Math.PI/2+coneAngle;
-        if (coneUnit.dotProduct(plane1Unit) <= Math.cos(minUnit1Angle)) { // A dot B = A.length*B.length*cos(theta)
-            throw new InvalidValueException("DoubleTruncatedCone received plane1Unit vector which was pi/2 radians or " +
-                    "more away from the coneUnit vector.");
+        // FIXME With multiple planes, it actually shouldn't matter what their angles are (< parallel to cone axis?)
+        //  so long as they bound their end of the cone.
+        for (Vec3d plane1Unit : plane1Units) {
+            if (coneUnit.dotProduct(plane1Unit) >= Math.cos(minUnit1Angle)) {
+                throw new InvalidValueException("DoubleTruncatedCone received plane1Unit vector which was pi/2 radians or " +
+                        "more away from the coneUnit vector.");
+            }
         }
         for (Vec3d plane2Unit : plane2Units) {
             if (coneUnit.dotProduct(plane2Unit) >= Math.cos(maxUnit2Angle)) {
@@ -51,9 +57,10 @@ public class OneNTruncatedCone implements GenerationFeature {
             }
         }
         this.origin = origin; // Where the cone's axis intersects plane1
-        this.coneEndOrigin = origin.add(coneUnit.scale(length)); // Where the cone's axis intersects plane2
+        this.coneVector = coneUnit.scale(length); // Vector from cone's start point to its end point.
+        this.coneEndOrigin = origin.add(coneVector); // Where the cone's axis intersects plane2
         this.coneUnit = coneUnit;
-        this.plane1Unit = plane1Unit;
+        this.plane1Units = plane1Units;
         this.plane2Units = plane2Units;
         this.radius1 = radius1;
         this.radius2 = radius2;
@@ -71,7 +78,9 @@ public class OneNTruncatedCone implements GenerationFeature {
         //  intersects it. Another way to look at it is that it's the radius of the lowest point on the cone (furthest
         //  from apex) at which plane1 intersects the cone.
         // Max slope of the plane, relative to plane perpendicular to coneUnit
-        double plane1Slope = Math.tan(Math.acos(coneUnit.dotProduct(plane1Unit)));
+
+        double plane1Slope = Helpers.arraySectionMax(plane1Units, 0, plane1Units.length,
+                (ToDoubleFunction<Vec3d>) plane1Unit -> Math.tan(Math.acos(coneUnit.dotProduct(plane1Unit))));
         // Can determine max length and max radius by finding the intersection of two lines - one is the line of max
         //  slope for plane1, and one is the side of the cone co-planar with that line of max slope.
         double maxRadius = -(coneSlope*radius1)/(plane1Slope-coneSlope);
@@ -111,6 +120,37 @@ public class OneNTruncatedCone implements GenerationFeature {
                 (int)Math.ceil(Math.max(z1, z2)/16.0));
     }
 
+    /**
+     * Determines if the provided point is within all the provided planes. Provided point should be relative to the
+     * planes' normals' origins (I.e. all planes should intersect at the same point).
+     * @param planes
+     * @param point
+     * @return
+     */
+    private boolean isInAllPlanes(Vec3d[] planes, Vec3d point) {
+        for (Vec3d planeNormal : planes) {
+            if ((planeNormal.dotProduct(point) < 0)) { // Outside the plane.
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Determines if the provided point is within all the provided planes. Provided point should be relative to the
+     * planes' normals' origins (I.e. all planes should intersect at the same point).
+     * @param planes
+     * @return
+     */
+    private boolean isInAllPlanes(Vec3d[] planes, double x, double y, double z, Vec3d offsetVector) {
+        for (Vec3d planeNormal : planes) {
+            if ((Helpers.dotProduct(planeNormal, x, y, z)-planeNormal.dotProduct(offsetVector)) < 0) { // Outside the plane.
+                return false;
+            }
+        }
+        return true;
+    }
+
     @Override
     public boolean intersectsCube(CubePos pos) {
         Vec3d cubeVector = new Vec3d(
@@ -121,13 +161,8 @@ public class OneNTruncatedCone implements GenerationFeature {
                 pos.getXCenter()-coneEndOrigin.x,
                 pos.getYCenter()-coneEndOrigin.y,
                 pos.getZCenter()-coneEndOrigin.z);
-        if ((plane1Unit.dotProduct(cubeVector) >= 0)) {
+        if (isInAllPlanes(plane1Units, cubeVector) && isInAllPlanes(plane2Units, cubeVector2)) {
             // Check if the point is outside any of the truncation planes on the smaller end
-            for (Vec3d plane2Unit : plane2Units) {
-                if ((plane2Unit.dotProduct(cubeVector2) < 0)) { // Outside the plane.
-                    return false;
-                }
-            }
             double dot = coneUnit.dotProduct(cubeVector); // cube vector's length along the cylinder's main axis
             // cube vector's radial distance from cone's axis, squared
             double radial2 = cubeVector.lengthSquared()-dot*dot;
@@ -175,24 +210,12 @@ public class OneNTruncatedCone implements GenerationFeature {
                     double currRadius = radius1-dot/coneSlope;
                     if ((dx2+dy2+dz2)-dot*dot > currRadius*currRadius) {
                         buffer[x][z][y] = AIR;
-                    }
-                    else if (Helpers.dotProduct(plane1Unit, dx, dy, dz) < 0) {
+                    } else if (!(isInAllPlanes(plane1Units, dx, dy, dz, Vec3d.ZERO)
+                                && isInAllPlanes(plane2Units, dx, dy, dz, coneVector))) {
                         buffer[x][z][y] = IGNORE; // Don't want it covering the cylinder ends in bark (0b00|0b10 -> 0b10)
                     }
                     else {
-                        boolean outsidePlanes = false;
-                        for (Vec3d plane2Unit : plane2Units) {
-                            if ((Helpers.dotProduct(plane2Unit, dx, dy, dz)-plane2Unit.dotProduct(coneUnit)*length) < 0) {
-                                outsidePlanes = true;
-                                break;
-                            }
-                        }
-                        if (outsidePlanes) {
-                            buffer[x][z][y] = IGNORE;
-                        }
-                        else {
-                            buffer[x][z][y] = WOOD;
-                        }
+                        buffer[x][z][y] = WOOD;
                     }
                 }
             }

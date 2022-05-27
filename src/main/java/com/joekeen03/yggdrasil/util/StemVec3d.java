@@ -261,7 +261,7 @@ public class StemVec3d {
 
 
     /**
-     * Rotates a unit vector about another this unit vector, by an angle theta. Assumes the unit vectors are perpendicular.
+     * Rotates a unit vector about this unit vector, by an angle theta. Assumes the unit vectors are perpendicular.
      * @param zUnit
      * @param theta
      * @return
@@ -269,5 +269,26 @@ public class StemVec3d {
     public StemVec3d rotateUnitVector(StemVec3d zUnit, double theta) {
         StemVec3d cross = this.crossProduct(zUnit);
         return zUnit.scale(Math.cos(theta)).add(cross.scale(Math.sin(theta))); // Rotate next z-vector
+    }
+
+    /**
+     * Rotates another vector about this vector by a specified angle theta.
+     * @param vector
+     * @param theta
+     * @return
+     */
+    public StemVec3d rotateAbout(StemVec3d vector, double theta) {
+        double length2 = this.lengthSquared();
+        StemVec3d parallel = this.scale(dotProduct(vector)/length2);
+        StemVec3d perpendicular = vector.subtract(parallel);
+        double perpendicularLength = perpendicular.length();
+        StemVec3d w = crossProduct(perpendicular);
+        double x1 = Math.cos(theta)/perpendicularLength;
+        double x2 = Math.sin(theta)/w.length();
+        StemVec3d x1Perpendicular = perpendicular.scale(x1);
+        StemVec3d x2w = w.scale(x2);
+        StemVec3d rotatedUnit = x1Perpendicular.add(x2w);
+        StemVec3d perpendicularRotated = rotatedUnit.scale(perpendicularLength);
+        return perpendicularRotated.add(parallel);
     }
 }

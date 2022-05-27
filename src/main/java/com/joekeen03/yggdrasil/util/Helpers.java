@@ -4,6 +4,7 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.math.Vec3i;
 
 import java.util.Random;
+import java.util.function.ToDoubleFunction;
 import java.util.function.ToIntFunction;
 
 public class Helpers {
@@ -22,6 +23,17 @@ public class Helpers {
         int max = Integer.MIN_VALUE;
         for (int i = sectionStart; i < sectionStop; i++) {
             int currVal = extractor.applyAsInt(arr[i]);
+            if (currVal > max) {
+                max = currVal;
+            }
+        }
+        return max;
+    }
+
+    public static <T> double arraySectionMax(T[] arr, int sectionStart, int sectionStop, ToDoubleFunction<T> extractor) {
+        double max = Double.MIN_VALUE;
+        for (int i = sectionStart; i < sectionStop; i++) {
+            double currVal = extractor.applyAsDouble(arr[i]);
             if (currVal > max) {
                 max = currVal;
             }

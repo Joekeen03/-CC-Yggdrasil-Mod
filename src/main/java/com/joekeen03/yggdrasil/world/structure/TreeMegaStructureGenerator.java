@@ -381,100 +381,142 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
             throw new InvalidValueException("Program does not currently handle taper values greater than 1.");
         }
 
-        StemVec3d currZUnit = zUnitOrigin;
-        StemVec3d currOrigin = trunkOrigin;
-        StemVec3d plane1Unit = zUnitOrigin;
-        double prevRadiusZ = stemRadius;
-        createTrunkSegment(currOrigin, currZUnit, xUnit, plane1Unit, stemRadius, 0, generationFeatures,
+        createTrunkSegment(trunkOrigin, zUnitOrigin, xUnit, zUnitOrigin, stemRadius, 0, generationFeatures,
                 treeRandom, stemRadius, unit_taper, lengthFraction, zUnitOrigin);
-//        for (int i = 0; i < curveResolution_0; i++) {
-//            double taperZ = stemRadius*(1-unit_taper*((double) i+1)/curveResolution_0);
-//            double radiusZ = taperZ;
-//            double theta = curve_0+randDoubleVariation(treeRandom, curveVariation_0);
-//            // Intersecting plane between this segment and the next. plane2Unit for curr segment is just this scaled by -1
-//            StemVec3d nextPlane1Unit = xUnit.rotateUnitVector(currZUnit, theta/2);
-//
-//            DoubleTruncatedCone segment = new DoubleTruncatedCone(
-//                    currOrigin.toMCVector(), currZUnit.toMCVector(),
-//                    plane1Unit.toMCVector(), nextPlane1Unit.scale(-1).toMCVector(),
-//                    prevRadiusZ, radiusZ, lengthFraction);
-//            generationFeatures.add(segment);
-//
-//            // Shift the next conical segment's origin down the line of max slope on the plane, to ensure its elliptical
-//            //  end lines up with the current segment's elliptical end.
-//            StemVec3d planeVec = xUnit.crossProduct(nextPlane1Unit);
-//            double coneSlope = lengthFraction/(radiusZ-prevRadiusZ);
-//            double planeMaxSlope = Math.tan(theta/2);
-//            double rMin = radiusZ*coneSlope/(coneSlope-planeMaxSlope);
-//            double rMax = radiusZ*coneSlope/(coneSlope+planeMaxSlope);
-//            double deltaR = rMax-rMin;
-//            double deltaH = planeMaxSlope*deltaR;
-//            double planeShift = Math.sqrt(deltaR*deltaR+deltaH*deltaH);
-//
-//            currOrigin = currOrigin.add(currZUnit.scale(lengthFraction)).add(planeVec.scale(planeShift));
-//            prevRadiusZ = radiusZ;
-//            plane1Unit = nextPlane1Unit;
-//            currZUnit = xUnit.rotateUnitVector(currZUnit, theta); // Rotate next z-vector
-//        }
         ModYggdrasil.info("Tree for sector "+sectorX+","+sectorY+","+sectorZ+" created, with origin at "+trunkOrigin.toMCVector());
         return new IntegerAABBTree(generationFeatures.toArray(new GenerationFeature[0]));
     }
 
-    protected static void createTrunkSegment(StemVec3d origin, StemVec3d zUnit, StemVec3d xUnit, StemVec3d plane1Unit,
+    protected static void createTrunkSegment(StemVec3d origin, StemVec3d zUnit, StemVec3d xUnit, StemVec3d[] plane1Units,
                                              double prevRadiusZ, int i, ArrayList<GenerationFeature> features,
                                              Random treeRandom, double stemRadius, double unit_taper, double lengthFraction,
                                              StemVec3d zUnitOrigin) {
         if (i >= curveResolution_0) {
             return;
         }
+
         int baseSplitsEffective_0 = 0;
-//        if (i == 0) {
-//            // FIXME What does Math.round mean by "ties round to positive infinity"?
-//            baseSplitsEffective_0 = (int)Math.round(baseSplits_0 + segSplitsError_0);
-//            segSplitsError_0 = baseSplitsEffective_0-baseSplits_0;
-//            double declinationAngle = Math.acos(zUnitOrigin.dotProduct(zUnit));
-//            int nBranches = baseSplitsEffective_0 + 1;
-//        } else {
-//            baseSplitsEffective_0 = (int)Math.round(baseSplits_0 + segSplitsError_0); // FIXME
-//        }
-        if (baseSplitsEffective_0 == 0) {
-            double taperZ = stemRadius*(1-unit_taper*((double) i+1)/curveResolution_0);
-            double radiusZ = taperZ;
+        if (i == 0) {
+            // FIXME What does Math.round mean by "ties round to positive infinity"?
+            baseSplitsEffective_0 = (int)Math.round(baseSplits_0 + segSplitsError_0);
+            segSplitsError_0 = baseSplitsEffective_0-baseSplits_0;
+        } else {
+            baseSplitsEffective_0 = (int)Math.round(segmentSplits_0 + segSplitsError_0); // FIXME
+            segSplitsError_0 = baseSplitsEffective_0-segmentSplits_0;
+        }
+
+        double taperZ = stemRadius*(1-unit_taper*((double) i+1)/curveResolution_0);
+        double radiusZ = taperZ;
+
+        if (baseSplitsEffective_0 == 0 || i == (curveResolution_0-1)) { // No branching
             double theta = curve_0+randDoubleVariation(treeRandom, curveVariation_0);
             // Intersecting plane between this segment and the next. plane2Unit for curr segment is just this scaled by -1
             StemVec3d nextPlane1Unit = xUnit.rotateUnitVector(zUnit, theta/2);
 
-            DoubleTruncatedCone segment = new DoubleTruncatedCone(
+            if (plane1Units.length == 1) {
+                DoubleTruncatedCone segment = new DoubleTruncatedCone(
+                        origin.toMCVector(), zUnit.toMCVector(),
+                        plane1Units[0].toMCVector(), nextPlane1Unit.scale(-1).toMCVector(),
+                        prevRadiusZ, radiusZ, lengthFraction);
+                features.add(segment);
+            } else {
+                MNTruncatedCone segment = new MNTruncatedCone(
+                        origin.toMCVector(), zUnit.toMCVector(),
+                        stemToMC(plane1Units), new Vec3d[] {nextPlane1Unit.scale(-1).toMCVector()},
+                        prevRadiusZ, radiusZ, lengthFraction);
+                features.add(segment);
+            }
+
+            StemVec3d nextZUnit = xUnit.rotateUnitVector(zUnit, theta); // Rotate next z-vector
+            StemVec3d nextOrigin = computeNextOrigin(nextPlane1Unit, origin, zUnit, nextZUnit, lengthFraction, prevRadiusZ, radiusZ);
+
+            createTrunkSegment(nextOrigin, nextZUnit, xUnit, new StemVec3d[] {nextPlane1Unit}, radiusZ, i+1,
+                    features, treeRandom, stemRadius, unit_taper, lengthFraction, zUnitOrigin);
+        }
+        else { // Branch
+            int nBranches = baseSplitsEffective_0 + 1;
+            double declinationAngle = Math.acos(zUnitOrigin.dotProduct(zUnit));
+            double[] splitAngles = new double[nBranches];
+            double[] rotateAngles = new double[nBranches];
+            StemVec3d[] nextPlane1Units = new StemVec3d[nBranches];
+            StemVec3d[] nextZUnits = new StemVec3d[nBranches];
+            for (int j = 0; j < nBranches; j++) {
+                splitAngles[j] = (splitAngle_0+randDoubleVariation(treeRandom, splitAngleVariation_0)) - declinationAngle;
+                double factor = treeRandom.nextDouble();
+                double sign = (treeRandom.nextDouble() > 0.5) ? 1 : -1;
+                rotateAngles[j] = sign*(20 + 0.75*(30 + Math.abs(declinationAngle-Math.PI/2))*factor*factor);
+                nextZUnits[j] = zUnitOrigin.rotateAbout(xUnit.rotateUnitVector(zUnit, splitAngles[j]), rotateAngles[j]);
+                // FIXME Is this correct?
+                nextPlane1Units[j] = zUnitOrigin.rotateAbout(xUnit.rotateUnitVector(zUnit, splitAngles[j]/2), rotateAngles[j]/2);
+            }
+
+            MNTruncatedCone segment = new MNTruncatedCone(
                     origin.toMCVector(), zUnit.toMCVector(),
-                    plane1Unit.toMCVector(), nextPlane1Unit.scale(-1).toMCVector(),
+                    stemToMC(plane1Units), stemToMCAndFlip(nextPlane1Units),
                     prevRadiusZ, radiusZ, lengthFraction);
             features.add(segment);
 
-            // Shift the next conical segment's origin down the line of max slope on the plane, to ensure its elliptical
-            //  end lines up with the current segment's elliptical end.
-            StemVec3d planeVec = xUnit.crossProduct(nextPlane1Unit);
-            double coneSlope = lengthFraction/(radiusZ-prevRadiusZ);
-            double planeMaxSlope = Math.tan(theta/2);
-            double rMin = radiusZ*coneSlope/(coneSlope-planeMaxSlope);
-            double rMax = radiusZ*coneSlope/(coneSlope+planeMaxSlope);
-            double deltaR = rMax-rMin;
-            double deltaH = planeMaxSlope*deltaR;
-            double planeShift = Math.sqrt(deltaR*deltaR+deltaH*deltaH);
+            if (nBranches == 2) {
+                StemVec3d dividingPlane1Unit = new StemVec3d(1, 1, 1); // FIXME
+            } else {
+                for (int j = 0; j < nBranches; j++) {
 
-            StemVec3d nextOrigin = origin.add(zUnit.scale(lengthFraction)).add(planeVec.scale(planeShift));
-            StemVec3d nextZUnit = xUnit.rotateUnitVector(zUnit, theta); // Rotate next z-vector
+                }
+            }
+        }
+    }
 
-            createTrunkSegment(nextOrigin, nextZUnit, xUnit, nextPlane1Unit, radiusZ, i+1, features,
-                    treeRandom, stemRadius, unit_taper, lengthFraction, zUnitOrigin);
-        }
-        else {
-            // Branching
-        }
+    /**
+     * Computes the next plane's origin. The nextPlaneXUnit should be perpendicular to the line of max slope along the
+     * plane, relative to the
+     * @param nextPlaneXUnit
+     * @param nextPlane1Normal
+     * @param currOrigin
+     * @param currZUnit
+     * @param nextZUnit
+     * @param lengthFraction
+     * @param currRadius
+     * @param nextRadius
+     * @return
+     */
+    protected static StemVec3d computeNextOrigin(StemVec3d nextPlane1Normal, StemVec3d currOrigin,
+                                                 StemVec3d currZUnit, StemVec3d nextZUnit,
+                                                 double lengthFraction, double currRadius, double nextRadius) {
+        // Shift the next conical segment's origin down the line of max slope on the plane, to ensure its elliptical
+        //  end lines up with the current segment's elliptical end.
+        double normalDot = nextPlane1Normal.dotProduct(nextZUnit); // cos(theta)
+        StemVec3d planeVec = nextPlane1Normal.scale(normalDot).subtract(nextZUnit).normalize(); // n_nextplane*cos(theta)-n_nextcone
+        double coneSlope = lengthFraction/(nextRadius-currRadius);
+        double planeMaxSlope = Math.tan(Math.acos(normalDot));
+        double rMin = nextRadius*coneSlope/(coneSlope-planeMaxSlope);
+        double rMax = nextRadius*coneSlope/(coneSlope+planeMaxSlope);
+        double deltaR = rMax-rMin;
+        double deltaH = planeMaxSlope*deltaR;
+        double planeShift = Math.sqrt(deltaR*deltaR+deltaH*deltaH);
+
+        // P_origin + length*n_nextcone + shift*n_maxSlope
+        return currOrigin.add(currZUnit.scale(lengthFraction)).add(planeVec.scale(planeShift));
     }
 
     protected static double randDoubleVariation(Random random, double variation) {
         // Is the variation supposed to be any value in the range [-variation, variation], or is it just supposed to be
         //  +/- variation (random sign, fixed magnitude)?
         return Helpers.randDoubleRange(random, -variation, variation);
+    }
+
+    protected static Vec3d[] stemToMCAndFlip(StemVec3d[] stemVectors) {
+        Vec3d[] mcVectors = new Vec3d[stemVectors.length];
+        for (int i = 0; i < stemVectors.length; i++) {
+            mcVectors[i] = stemVectors[i].toMCVector().scale(-1);
+        }
+        return mcVectors;
+    }
+
+    protected static Vec3d[] stemToMC(StemVec3d[] stemVectors) {
+        Vec3d[] mcVectors = new Vec3d[stemVectors.length];
+        for (int i = 0; i < stemVectors.length; i++) {
+            mcVectors[i] = stemVectors[i].toMCVector();
+        }
+        return mcVectors;
     }
 }
