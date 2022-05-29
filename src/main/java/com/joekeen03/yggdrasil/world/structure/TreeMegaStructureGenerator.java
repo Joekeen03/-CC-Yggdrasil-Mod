@@ -458,9 +458,11 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
             for (int j = 0; j < nBranches; j++) {
                 StemVec3d nextOrigin = computeNextOrigin(nextPlane1Units[j], origin, zUnit, nextZUnits[j], lengthFraction, prevRadiusZ, radiusZ);
                 StemVec3d nextXUnit = zUnitOrigin.crossProduct(nextZUnits[j]).normalize();
-                if (nextXUnit == StemVec3d.ZERO) {
-                    nextXUnit = xUnit;
+                // FIXME Thought of some issue?
+                if (nextXUnit == StemVec3d.ZERO) { // zUnit and zUnitOrigin are parallel
+                    nextXUnit = xUnit.rotateUnitVector(zUnitOrigin, rotateAngles[j]);
                 }
+                // FIXME Proper joining between branches.
                 createTrunkSegment(nextOrigin, nextZUnits[j], nextXUnit, new StemVec3d[] {nextPlane1Units[j]}, radiusZ, i+1,
                         features, treeRandom, stemRadius, unit_taper, lengthFraction, zUnitOrigin);
             }
