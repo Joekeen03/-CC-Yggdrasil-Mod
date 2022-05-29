@@ -455,13 +455,14 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
                     stemToMC(plane1Units), stemToMCAndFlip(nextPlane1Units),
                     prevRadiusZ, radiusZ, lengthFraction);
             features.add(segment);
-
-            if (nBranches == 2) {
-                StemVec3d dividingPlane1Unit = new StemVec3d(1, 1, 1); // FIXME
-            } else {
-                for (int j = 0; j < nBranches; j++) {
-
+            for (int j = 0; j < nBranches; j++) {
+                StemVec3d nextOrigin = computeNextOrigin(nextPlane1Units[j], origin, zUnit, nextZUnits[j], lengthFraction, prevRadiusZ, radiusZ);
+                StemVec3d nextXUnit = zUnitOrigin.crossProduct(nextZUnits[j]).normalize();
+                if (nextXUnit == StemVec3d.ZERO) {
+                    nextXUnit = xUnit;
                 }
+                createTrunkSegment(nextOrigin, nextZUnits[j], nextXUnit, new StemVec3d[] {nextPlane1Units[j]}, radiusZ, i+1,
+                        features, treeRandom, stemRadius, unit_taper, lengthFraction, zUnitOrigin);
             }
         }
     }
