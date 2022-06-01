@@ -94,6 +94,10 @@ public class Helpers {
         return xDiff*xDiff+zDiff*zDiff;
     }
 
+    public static double randDoubleSign(Random rand) {
+        return (rand.nextBoolean()) ? 1.0 : -1.0;
+    }
+
     public static int randIntRange(Random rand, int min, int max) {
         return rand.nextInt(max-min)+min;
     }
