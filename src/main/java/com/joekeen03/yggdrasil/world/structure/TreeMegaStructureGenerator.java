@@ -15,11 +15,13 @@ import net.minecraft.init.Blocks;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
+import org.apache.commons.lang3.NotImplementedException;
 import org.lwjgl.util.vector.Vector2f;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Random;
+import java.util.function.DoubleUnaryOperator;
 
 public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
     private static final int TREE_RATE = 5; // On average, 1 out of this many sectors will spawn a tree.
@@ -312,8 +314,10 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
     //  correspond to MC's coord system as follows: x_tree -> z_MC, y_tree -> x_MC, z_tree -> y_MC
 
     // 0-level (trunk) parameters
-    private static final double baseScale = 1.0;
-    private static final double baseScaleVariation = 0.1;
+    private static final TreeShape shape = TreeShape.TaperedCylindrical;
+    private static final double baseSize = 1.0;
+    private static final double scale = 1.0;
+    private static final double scaleVariation = 0.1;
     private static final double ratio = 0.03;
     private static final double length_0 = 1500;
     private static final double lengthVariation_0 = 500;
@@ -328,7 +332,15 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
     private static final double splitAngle_0 = Math.toRadians(30);
     private static final double splitAngleVariation_0 = Math.toRadians(20);
 
-    private static double segSplitsError_0 = 0.0;
+    private static final int branches_1 = 40;
+    private static final double length_1 = 0.5;
+    private static final double lengthVariation_1 = 0.05;
+    private static final double downAngle_1 = Math.toRadians(30);
+    private static final double downAngleVariation_1 = Math.toRadians(10);
+    private static final double rotate_1 = Math.toRadians(10);
+    private static final double rotateVariation_1 = Math.toRadians(10);
+
+    private static double segSplitsError_0 = 0.0; // TODO Maybe initialize this to a random value in the range (-0.5, 0.5]
     // * Would impact other parameters such as splitting rates.
 
     protected static IntegerAABBTree createTree(Random treeRandom, int sectorX, int sectorY, int sectorZ) {
@@ -343,9 +355,10 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
         double xAngle = Helpers.randDoubleRange(treeRandom, -Math.PI, Math.PI);
         StemVec3d xUnit = new StemVec3d(Math.cos(xAngle), Math.sin(xAngle), 0);
 
-        double treeScale = baseScale + randDoubleVariation(treeRandom, baseScaleVariation);
+        double treeScale = scale + randDoubleVariation(treeRandom, scaleVariation);
         double length = (length_0 + randDoubleVariation(treeRandom, lengthVariation_0)) * treeScale;
         double stemRadius = length*scale_0*ratio;
+        double lengthBase = treeScale*baseSize;
 
         ArrayList<GenerationFeature> generationFeatures = new ArrayList<>(3000);
         // FIXME - Reference stores segments as nearly-circular circles between each segment, which it then connects
@@ -380,19 +393,57 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
         } else if (taper_0 > 1) {
             throw new InvalidValueException("Program does not currently handle taper values greater than 1.");
         }
+        int nChildren = branches_1;
+        double branchDistance = length/nChildren;
 
-        createTrunkSegment(trunkOrigin, zUnitOrigin, xUnit, zUnitOrigin, stemRadius, 0, generationFeatures,
-                treeRandom, stemRadius, unit_taper, lengthFraction, zUnitOrigin);
+        createTrunkSegment(trunkOrigin, zUnitOrigin, xUnit, new StemVec3d[]{zUnitOrigin},
+                stemRadius, 0, branchDistance/2, 0,
+                generationFeatures, treeRandom, stemRadius,
+                unit_taper, lengthFraction, zUnitOrigin,
+                length, nChildren, lengthBase, branchDistance);
         ModYggdrasil.info("Tree for sector "+sectorX+","+sectorY+","+sectorZ+" created, with origin at "+trunkOrigin.toMCVector());
         return new IntegerAABBTree(generationFeatures.toArray(new GenerationFeature[0]));
     }
 
     protected static void createTrunkSegment(StemVec3d origin, StemVec3d zUnit, StemVec3d xUnit, StemVec3d[] plane1Units,
-                                             double prevRadiusZ, int i, ArrayList<GenerationFeature> features,
-                                             Random treeRandom, double stemRadius, double unit_taper, double lengthFraction,
-                                             StemVec3d zUnitOrigin) {
+                                             double prevRadiusZ, int i, double nextChildOffset, double lastChildRotateAngle,
+                                             final ArrayList<GenerationFeature> features, final Random treeRandom, final double stemRadius,
+                                             final double unit_taper, final double lengthFraction, final StemVec3d zUnitOrigin,
+                                             final double trunkLength, final int nChildren, final double lengthBase, final double branchDistance) {
         if (i >= curveResolution_0) {
             return;
+        }
+
+        // Form children
+        double totalLength = lengthFraction*(i+1);
+        double offset = nextChildOffset;
+        double lastChildAngle = lastChildRotateAngle;
+        while (offset < totalLength) {
+            double lengthChildMax = length_1+randDoubleVariation(treeRandom, lengthVariation_1);
+            double lengthChild = lengthChildMax*trunkLength*getShapeRatio((trunkLength-offset)/(trunkLength-lengthBase));
+            double downAngleChild;
+            if (downAngleVariation_1 >= 0) {
+                downAngleChild = downAngle_1 + randDoubleVariation(treeRandom, downAngleVariation_1);
+            } else {
+                // FIXME is this correct?
+                downAngleChild = downAngle_1 + (randDoubleVariation(treeRandom, downAngleVariation_1
+                        *(1 - 2*TreeShape.Conical.getRatio.applyAsDouble((trunkLength-offset)/(trunkLength-lengthBase))) ));
+            }
+            StemVec3d childZUnit = xUnit.rotateUnitVector(zUnit, downAngleChild);
+
+            if (rotate_1 >= 0) {
+                lastChildAngle += rotate_1 + randDoubleVariation(treeRandom, rotateVariation_1);
+                childZUnit = zUnit.rotateAbout(childZUnit, lastChildAngle);
+            } else {
+                double angle = rotate_1 + randDoubleVariation(treeRandom, rotateVariation_1);
+                childZUnit = zUnit.rotateAbout(childZUnit, angle);
+//                 Or should it be:
+//                 StemVec3d yUnit = zUnit.crossProduct(xUnit);
+//                 childZUnit = yUnit.rotateAbout(childZUnit, angle);
+            }
+
+            // TODO Spawn children
+            offset += branchDistance;
         }
 
         int baseSplitsEffective_0 = 0;
@@ -430,8 +481,11 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
             StemVec3d nextZUnit = xUnit.rotateUnitVector(zUnit, theta); // Rotate next z-vector
             StemVec3d nextOrigin = computeNextOrigin(nextPlane1Unit, origin, zUnit, nextZUnit, lengthFraction, prevRadiusZ, radiusZ);
 
-            createTrunkSegment(nextOrigin, nextZUnit, xUnit, new StemVec3d[] {nextPlane1Unit}, radiusZ, i+1,
-                    features, treeRandom, stemRadius, unit_taper, lengthFraction, zUnitOrigin);
+            createTrunkSegment(nextOrigin, nextZUnit, xUnit, new StemVec3d[] {nextPlane1Unit},
+                    radiusZ, i+1, offset, lastChildAngle,
+                    features, treeRandom, stemRadius,
+                    unit_taper, lengthFraction, zUnitOrigin,
+                    trunkLength, nChildren, lengthBase, branchDistance);
         }
         else { // Branch
             int nBranches = baseSplitsEffective_0 + 1;
@@ -463,8 +517,11 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
                     nextXUnit = xUnit.rotateUnitVector(zUnitOrigin, rotateAngles[j]);
                 }
                 // FIXME Proper joining between branches.
-                createTrunkSegment(nextOrigin, nextZUnits[j], nextXUnit, new StemVec3d[] {nextPlane1Units[j]}, radiusZ, i+1,
-                        features, treeRandom, stemRadius, unit_taper, lengthFraction, zUnitOrigin);
+                createTrunkSegment(nextOrigin, nextZUnits[j], nextXUnit, new StemVec3d[] {nextPlane1Units[j]},
+                        radiusZ, i+1, offset, lastChildAngle,
+                        features, treeRandom, stemRadius,
+                        unit_taper, lengthFraction, zUnitOrigin,
+                        trunkLength, nChildren, lengthBase, branchDistance);
             }
         }
     }
@@ -472,7 +529,6 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
     /**
      * Computes the next plane's origin. The nextPlaneXUnit should be perpendicular to the line of max slope along the
      * plane, relative to the
-     * @param nextPlaneXUnit
      * @param nextPlane1Normal
      * @param currOrigin
      * @param currZUnit
@@ -501,6 +557,15 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
         return currOrigin.add(currZUnit.scale(lengthFraction)).add(planeVec.scale(planeShift));
     }
 
+    protected static double getShapeRatio(double ratio) {
+        switch (shape) {
+            case PruningEnvelope:
+                throw new NotImplementedException("Pruning envelope has not yet been implemented.");
+            default:
+                return shape.getRatio.applyAsDouble(ratio);
+        }
+    }
+
     protected static double randDoubleVariation(Random random, double variation) {
         // Is the variation supposed to be any value in the range [-variation, variation], or is it just supposed to be
         //  +/- variation (random sign, fixed magnitude)?
@@ -521,5 +586,29 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
             mcVectors[i] = stemVectors[i].toMCVector();
         }
         return mcVectors;
+    }
+
+    public enum TreeShape {
+        Conical(ratio -> 0.2+0.8*ratio),
+        Spherical(ratio -> 0.2+0.8*Math.sin(Math.PI*ratio)),
+        Hemispherical(ratio -> 0.2+0.8*Math.sin(Math.PI/2*ratio)),
+        Cylindrical(ratio -> 1.0),
+        TaperedCylindrical(ratio -> 0.5+0.5*ratio),
+        Flame(ratio -> {
+            throw new NotImplementedException("Flame shape not yet implemented");
+        }),
+        InverseConical(ratio -> {
+            throw new NotImplementedException("Inverse Conical shape not yet implemented");
+        }),
+        TendFlame(ratio -> {
+            throw new NotImplementedException("Tend Flame shape not yet implemented");
+        }),
+        PruningEnvelope(ratio -> {
+            throw new NotImplementedException("Prune shape does not have a ratio function.");
+        });
+        public final DoubleUnaryOperator getRatio;
+        private TreeShape(DoubleUnaryOperator ratioFunction) {
+            getRatio = ratioFunction;
+        }
     }
 }
