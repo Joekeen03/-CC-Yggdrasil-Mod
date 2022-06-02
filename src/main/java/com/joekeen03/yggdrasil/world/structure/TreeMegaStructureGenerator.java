@@ -503,8 +503,7 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
             for (int j = 0; j < nBranches; j++) {
                 splitAngles[j] = (trunkParams.splitAngle +randDoubleVariation(treeCreationParams.treeRandom, trunkParams.splitAngleVariation)) - declinationAngle;
                 double factor = treeCreationParams.treeRandom.nextDouble();
-                double sign = (treeCreationParams.treeRandom.nextDouble() > 0.5) ? 1 : -1;
-                rotateAngles[j] = sign*(20 + 0.75*(30 + Math.abs(declinationAngle-Math.PI/2))*factor*factor);
+                rotateAngles[j] = Helpers.randDoubleSign(treeCreationParams.treeRandom)*(Math.toRadians(20) + 0.75*(Math.toRadians(30) + Math.abs(declinationAngle-Math.PI/2))*factor*factor);
                 nextZUnits[j] = treeCreationParams.zUnitOrigin.rotateAbout(xUnit.rotateUnitVector(zUnit, splitAngles[j]), rotateAngles[j]);
                 // FIXME Is this correct?
                 nextPlane1Units[j] = treeCreationParams.zUnitOrigin.rotateAbout(xUnit.rotateUnitVector(zUnit, splitAngles[j]/2), rotateAngles[j]/2);
@@ -636,8 +635,7 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
             for (int j = 0; j < nBranches; j++) {
                 splitAngles[j] = (currentBranch.splitAngle+randDoubleVariation(treeCreationParams.treeRandom, currentBranch.splitAngleVariation)) - declinationAngle;
                 double factor = treeCreationParams.treeRandom.nextDouble();
-                double sign = (treeCreationParams.treeRandom.nextDouble() > 0.5) ? 1 : -1;
-                rotateAngles[j] = sign*(Math.toRadians(20) + 0.75*(Math.toRadians(30) + Math.abs(declinationAngle-Math.PI/2))*factor*factor);
+                rotateAngles[j] = Helpers.randDoubleSign(treeCreationParams.treeRandom)*(Math.toRadians(20) + 0.75*(Math.toRadians(30) + Math.abs(declinationAngle-Math.PI/2))*factor*factor);
                 nextZUnits[j] = treeCreationParams.zUnitOrigin.rotateAbout(xUnit.rotateUnitVector(zUnit, splitAngles[j]), rotateAngles[j]);
                 // FIXME Is this correct?
                 nextPlane1Units[j] = treeCreationParams.zUnitOrigin.rotateAbout(xUnit.rotateUnitVector(zUnit, splitAngles[j]/2), rotateAngles[j]/2);
