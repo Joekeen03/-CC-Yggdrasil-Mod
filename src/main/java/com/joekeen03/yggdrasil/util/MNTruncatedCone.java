@@ -45,7 +45,7 @@ public class MNTruncatedCone implements GenerationFeature {
         // FIXME With multiple planes, it actually shouldn't matter what their angles are (< parallel to cone axis?)
         //  so long as they bound their end of the cone.
         for (Vec3d plane1Unit : plane1Units) {
-            if (coneUnit.dotProduct(plane1Unit) >= Math.cos(minUnit1Angle)) {
+            if (coneUnit.dotProduct(plane1Unit) <= Math.cos(minUnit1Angle)) {
                 throw new InvalidValueException("DoubleTruncatedCone received plane1Unit vector which was pi/2 radians or " +
                         "more away from the coneUnit vector.");
             }

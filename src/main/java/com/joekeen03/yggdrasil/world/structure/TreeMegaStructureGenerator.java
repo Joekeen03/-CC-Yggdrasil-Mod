@@ -381,7 +381,8 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
             throw new InvalidValueException("Program does not currently handle taper values greater than 1.");
         }
 
-        createTrunkSegment(trunkOrigin, zUnitOrigin, xUnit, zUnitOrigin, stemRadius, 0, generationFeatures,
+        segSplitsError_0 = 0.0;
+        createTrunkSegment(trunkOrigin, zUnitOrigin, xUnit, new StemVec3d[] {zUnitOrigin}, stemRadius, 0, generationFeatures,
                 treeRandom, stemRadius, unit_taper, lengthFraction, zUnitOrigin);
         ModYggdrasil.info("Tree for sector "+sectorX+","+sectorY+","+sectorZ+" created, with origin at "+trunkOrigin.toMCVector());
         return new IntegerAABBTree(generationFeatures.toArray(new GenerationFeature[0]));
@@ -399,10 +400,10 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
         if (i == 0) {
             // FIXME What does Math.round mean by "ties round to positive infinity"?
             baseSplitsEffective_0 = (int)Math.round(baseSplits_0 + segSplitsError_0);
-            segSplitsError_0 = baseSplitsEffective_0-baseSplits_0;
+            segSplitsError_0 -= baseSplitsEffective_0-baseSplits_0;
         } else {
             baseSplitsEffective_0 = (int)Math.round(segmentSplits_0 + segSplitsError_0); // FIXME
-            segSplitsError_0 = baseSplitsEffective_0-segmentSplits_0;
+            segSplitsError_0 -= baseSplitsEffective_0-segmentSplits_0;
         }
 
         double taperZ = stemRadius*(1-unit_taper*((double) i+1)/curveResolution_0);
@@ -444,7 +445,7 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
                 splitAngles[j] = (splitAngle_0+randDoubleVariation(treeRandom, splitAngleVariation_0)) - declinationAngle;
                 double factor = treeRandom.nextDouble();
                 double sign = (treeRandom.nextDouble() > 0.5) ? 1 : -1;
-                rotateAngles[j] = sign*(20 + 0.75*(30 + Math.abs(declinationAngle-Math.PI/2))*factor*factor);
+                rotateAngles[j] = sign*(Math.toRadians(20) + 0.75*(Math.toRadians(30) + Math.abs(declinationAngle-Math.PI/2))*factor*factor);
                 nextZUnits[j] = zUnitOrigin.rotateAbout(xUnit.rotateUnitVector(zUnit, splitAngles[j]), rotateAngles[j]);
                 // FIXME Is this correct?
                 nextPlane1Units[j] = zUnitOrigin.rotateAbout(xUnit.rotateUnitVector(zUnit, splitAngles[j]/2), rotateAngles[j]/2);
@@ -472,7 +473,6 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
     /**
      * Computes the next plane's origin. The nextPlaneXUnit should be perpendicular to the line of max slope along the
      * plane, relative to the
-     * @param nextPlaneXUnit
      * @param nextPlane1Normal
      * @param currOrigin
      * @param currZUnit
