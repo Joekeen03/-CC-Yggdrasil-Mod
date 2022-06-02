@@ -9,7 +9,7 @@ public class BranchParams {
             segSplits, splitAngle, splitAngleVariation,
             curve, curveBack, curveVariation;
 
-    private double segSplitsError = 0.0;
+    private double segSplitsError;
 
     public BranchParams(double downAngle, double downAngleVariation,
                         double rotate, double rotateVariation, int branches,
@@ -31,13 +31,18 @@ public class BranchParams {
         this.curve = curve;
         this.curveBack = curveBack;
         this.curveVariation = curveVariation;
+        resetSplitError();
     }
 
     // FIXME Should this be moved to a separate class? I.e. treat this class as level-global constant data, and another
     //  class holds level-global volatile data?
     public int getNextEffectiveSplits() {
         int segSplitsEffective = (int)Math.round(segSplits + segSplits); // FIXME
-        segSplitsError = segSplitsEffective- segSplits;
+        segSplitsError -= segSplitsEffective-segSplits;
         return segSplitsEffective;
+    }
+
+    public void resetSplitError() {
+        segSplitsError = 0.0;
     }
 }

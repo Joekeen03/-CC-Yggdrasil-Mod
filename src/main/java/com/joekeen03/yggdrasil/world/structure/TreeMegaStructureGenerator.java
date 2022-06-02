@@ -637,7 +637,7 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
                 splitAngles[j] = (currentBranch.splitAngle+randDoubleVariation(treeCreationParams.treeRandom, currentBranch.splitAngleVariation)) - declinationAngle;
                 double factor = treeCreationParams.treeRandom.nextDouble();
                 double sign = (treeCreationParams.treeRandom.nextDouble() > 0.5) ? 1 : -1;
-                rotateAngles[j] = sign*(20 + 0.75*(30 + Math.abs(declinationAngle-Math.PI/2))*factor*factor);
+                rotateAngles[j] = sign*(Math.toRadians(20) + 0.75*(Math.toRadians(30) + Math.abs(declinationAngle-Math.PI/2))*factor*factor);
                 nextZUnits[j] = treeCreationParams.zUnitOrigin.rotateAbout(xUnit.rotateUnitVector(zUnit, splitAngles[j]), rotateAngles[j]);
                 // FIXME Is this correct?
                 nextPlane1Units[j] = treeCreationParams.zUnitOrigin.rotateAbout(xUnit.rotateUnitVector(zUnit, splitAngles[j]/2), rotateAngles[j]/2);
