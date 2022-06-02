@@ -7,9 +7,15 @@ import net.minecraft.util.math.Vec3i;
 
 import javax.annotation.Nullable;
 
+/**
+ * 3d vector in stem space, analogous to Minecraft's Vec3d. Deliberately type-incompatible with Vec3d, to prevent
+ * accidentally mixing the two up.
+ * Direct copy of Vec3d's code, with a few additions.
+ */
 public class StemVec3d {
     // FIXME should probably just copy Vec3d's code, not inherit it - avoid accidental confusion between them.
     public static final StemVec3d ZERO = new StemVec3d(0.0D, 0.0D, 0.0D);
+    public static final double epsilon = 1.0E-4D;
     public final double x;
     public final double y;
     public final double z;
@@ -50,7 +56,7 @@ public class StemVec3d {
     public StemVec3d normalize()
     {
         double d0 = (double) MathHelper.sqrt(this.x * this.x + this.y * this.y + this.z * this.z);
-        return d0 < 1.0E-4D ? ZERO : new StemVec3d(this.x / d0, this.y / d0, this.z / d0);
+        return d0 < epsilon ? ZERO : new StemVec3d(this.x / d0, this.y / d0, this.z / d0);
     }
 
     public double dotProduct(StemVec3d vec)
@@ -282,6 +288,10 @@ public class StemVec3d {
         StemVec3d parallel = this.scale(dotProduct(vector)/length2);
         StemVec3d perpendicular = vector.subtract(parallel);
         double perpendicularLength = perpendicular.length();
+        if (perpendicularLength < epsilon) { // If other vector is aligned with this vector, rotations won't change it.
+            return vector;
+        }
+        // FIXME potential divide by zero error?
         StemVec3d w = crossProduct(perpendicular);
         double x1 = Math.cos(theta)/perpendicularLength;
         double x2 = Math.sin(theta)/w.length();
@@ -290,5 +300,9 @@ public class StemVec3d {
         StemVec3d rotatedUnit = x1Perpendicular.add(x2w);
         StemVec3d perpendicularRotated = rotatedUnit.scale(perpendicularLength);
         return perpendicularRotated.add(parallel);
+    }
+
+    public boolean isZero() {
+        return (this == StemVec3d.ZERO || this.length() < epsilon);
     }
 }

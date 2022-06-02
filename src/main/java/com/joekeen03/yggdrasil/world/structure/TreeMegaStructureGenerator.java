@@ -12,14 +12,11 @@ import net.minecraft.block.BlockOldLog;
 import net.minecraft.block.BlockPlanks;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Blocks;
-import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import org.apache.commons.lang3.NotImplementedException;
-import org.lwjgl.util.vector.Vector2f;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Random;
 
 public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
@@ -101,19 +98,6 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
         tree.forEachLeaf(generatedCubePos, feature -> feature.generate(cube, generatedCubePos));
         //ModYggdrasil.info("Tree generation finished for cube at "+generatedCubePos);
 
-        // For each branch:
-            // Generate a segment - random length
-                // Average length should drop w/ thickness
-                // Maybe segments should slowly become thinner over their length
-            // Generate a random number of branches leaving the segment, and random angles/base thicknesses for them
-            // Call the method recursively on those branches.
-            // If the branch reaches a certain minimum thickness (1?), instead generate leaves
-                // Maybe reserve this for the actual block placement - instead, terminate the algorithm past a certain
-                    // point?
-                    // Would need a way to save the generator's state - maybe you generate a seed value which you save,
-                    // which is used to seed an rng for generating the leaves/fine branches?
-                    // Basically, I only want to save the stuff that a lot of cubes will have to check/process.
-
         // TODO - maybe a simulation type algorithm for generating trees, where it roughly simluates the tree's growth?
 
         // TODO - Tree varieties?
@@ -138,13 +122,7 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
         //  they're caused by stress in the tree, and the tree attempting to seal off the stressor (e.g. damage)
         // TODO Trunks and branches that aren't perfectly straight
         // TODO Trunks that aren't perfectly circular? Maybe use some 3D perlin noise, and for each exterior point on
-        //  the trunk, use the noise value at that point to shift the point out/in
-        // TODO Better way to generate circles for the trunks (esp. the bark)? For the bark, might be best to just check
-        //  if a given block is exposed to air - if so, turn it into bark.
-        // TODO How to efficiently check if a cube needs to worry about a branch?
-        // TODO Cache the results of this algorithm - otherwise, all 96x96x96 cubes will have to compute this tree
-        //      Probably generate the whole tree the first time, then cache the bounding boxes for each branching point?
-        //      Storage method:
+        //  the trunk, use the noise value at that point to shift the point out/in?
         // Note - logically, tree growth might be approximated as follows: initial branch angle is fixed, independent
         //  of other branches (where starts). How the branch branches out (length of segments, segment angles), though,
         //  will likely be impacted by the branches above it, but not the other way around.
@@ -214,52 +192,6 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
         //      buffer object while it is being created? Then not update it when it should?
     }
 
-    protected static IntegerAABBTree generateTree(Random structureRandom, int sectorX, int sectorY, int sectorZ) {
-        final int trunkXCenter = structureRandom.nextInt(xzSectorSize)+sectorX*xzSectorSize;
-        final int trunkYCenter = 48;
-        final int trunkZCenter = structureRandom.nextInt(xzSectorSize)+sectorZ*xzSectorSize;
-        int trunkHeight = structureRandom.nextInt(512)+512; // Trunk height range: [512, 1024)
-        int trunkRadius = structureRandom.nextInt(16)+32; // Trunk's base radius range: [32, 48)
-        // - maybe should be influenced by height?
-
-        final int nBranches = Helpers.randIntRange(structureRandom, (int)(trunkHeight/2/20*0.9), (int)(trunkHeight/2/20*1.1));
-        double[] branchHeights = new double[nBranches];
-        for (int i = 0; i < nBranches; i++) {
-            branchHeights[i] = Helpers.randDoubleRange(structureRandom, 0.5, 1.0);
-        }
-        Arrays.sort(branchHeights); // Sort the branches from bottom to top
-
-        // Cumulative bias of the branches - effectively, an average of the branches' azimuthal angles, and how strongly
-        //  they're biased towards that direction.
-        Vector2f bias = new Vector2f(0, 0);
-
-        double[][] branchInfo = new double[nBranches][4];
-        for (int i = 0; i < nBranches; i++) {
-            double[] branch = branchInfo[i];
-            // Where the branch is - maybe this should be weighted towards the top?
-            branch[0] = branchHeights[i];
-            // Thickness relative to the trunk at that point - weighted so branches get thicker relative to the branch
-            // as you go up
-            branch[1] = Helpers.randDoubleRange(structureRandom, 0.1, branch[0]*1.6-0.6);
-            // Angle the branch leaves the tree at, in spherical coords
-            branch[2] = Helpers.randDoubleRange(structureRandom, Math.PI*0.3, Math.PI*0.45); // polar
-
-            // How much the next branch's angle will be offset from the bias vector's angle.
-            double offset = 0.0;
-            // The more biased the branches are to one side, the more biased the next one will be to the opposite side.
-            int nRandom = (int) (bias.length()+1);
-            for (int j = 0; j < nRandom; j++) {
-                offset = Helpers.randDoubleRange(structureRandom, 0, Math.PI*2);
-            }
-            double azimuthal = (Math.atan2(bias.y, bias.x)+Math.PI+offset/nRandom)%(Math.PI*2) - Math.PI;
-            branch[3] = azimuthal; // azimuthal
-            // Add the current branch to the bias vector
-            bias.translate((float)Math.cos(azimuthal), (float) Math.sin(azimuthal));
-        }
-
-        final Cylinder[] cylinders = new Cylinder[nBranches*2+1];
-        double currBaseRadius = trunkRadius;
-        double lastHeight = 0.0;
         /*
         TODO
             -Rough up trunks (craggly, irregular shapes)
@@ -284,24 +216,6 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
                 *Roots - should influence trunk shape?
             -Verify branches are actually being placed at correct heights.
          */
-        for (int i = 0; i < nBranches; i++) {
-            double[] branch = branchInfo[i];
-            // Branch cylinder
-            cylinders[i] = new Cylinder(new BlockPos(trunkXCenter, trunkYCenter+trunkHeight*(branch[0]), trunkZCenter),
-                    currBaseRadius*branch[1], 300, branch[2], branch[3]);
-            // Trunk segment
-            cylinders[nBranches+i] = new Cylinder(
-                    new BlockPos(trunkXCenter, trunkYCenter+trunkHeight*lastHeight, trunkZCenter),
-                    currBaseRadius, trunkHeight*(branch[0]-lastHeight), 0.0, 0.0);
-            currBaseRadius *= Math.sqrt(1-branch[1]*branch[1]);
-            lastHeight = branch[0];
-        }
-        cylinders[nBranches*2] = new Cylinder(
-                new BlockPos(trunkXCenter, trunkYCenter+trunkHeight*lastHeight, trunkZCenter),
-                trunkRadius, trunkHeight*(1.0-lastHeight), 0.0, 0.0);
-        ModYggdrasil.info("Tree for sector "+sectorX+","+sectorY+","+sectorZ+" created, with origin at "+cylinders[nBranches].origin);
-        return new IntegerAABBTree(cylinders);
-    }
 
     // Using the tree generation model laid out in "Creation and Rendering of Realistic Trees", by Jason Weber and
     //  Joseph Penn.
@@ -315,42 +229,49 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
     private static final double TEMP = 0;
 
     // 0-level (trunk) parameters
+    // TODO Implement an nSegsBase, which prevents cloning before a certain point? Or...could just have
+    //  baseSplits=segSplits=0, baseLength=0.95, and 0branches=7.
     private static final TrunkParams trunkParams = new TrunkParams(
             1.0, 0.1,
-            1500, 500, 1.0,
-            2,
-            0.5, Math.toRadians(30), Math.toRadians(20),
-            10, Math.toRadians(5), Math.toRadians(0), Math.toRadians(5));
+            300, 75, 1.0,
+            4,
+            0, Math.toRadians(70), Math.toRadians(20),
+            2, Math.toRadians(0), Math.toRadians(0), Math.toRadians(0));
 
     private static final BranchParams branch_1 = new BranchParams(
             Math.toRadians(30), Math.toRadians(10),
             Math.toRadians(10), Math.toRadians(10), 40,
             0.5, 0.05, 1.0,
-            TEMP, TEMP, TEMP,
-            20, TEMP, TEMP, TEMP);
+            0.1, Math.toRadians(40), Math.toRadians(10),
+            20, Math.toRadians(5), Math.toRadians(0), Math.toRadians(2.5));
 
     private static final BranchParams branch_2 = new BranchParams(
             Math.toRadians(30), Math.toRadians(10),
             Math.toRadians(10), Math.toRadians(10), 20,
             0.5, 0.05, 1.0,
-            TEMP, TEMP, TEMP,
-            20, TEMP, TEMP, TEMP);
+            0.1, Math.toRadians(40), Math.toRadians(10),
+            10, Math.toRadians(7), Math.toRadians(0), Math.toRadians(3));
 
     private static final BranchParams[] branchParams = new BranchParams[] {branch_1, branch_2};
     private static final TreeTypeParams treeParams = new TreeTypeParams(
             "Testing",
             TreeTypeParams.TreeShape.TaperedCylindrical,
-            1.0,
+            0.5,
             1.0, 0.1, TEMP, TEMP,
-            3,
+            1,
             0.03, 1.2,
             (int)TEMP, TEMP,
             TEMP,
             trunkParams,
             branchParams);
 
-    private static double segSplitsError_0 = 0.0;
-    // * Would impact other parameters such as splitting rates.
+    private static StemParams fetchParams(int level) {
+        if (level == 0) {
+            return trunkParams;
+        } else {
+            return branchParams[level-1];
+        }
+    }
 
     protected static IntegerAABBTree createTree(Random treeRandom, int sectorX, int sectorY, int sectorZ) {
         // Generate trunk - recursive level 0
@@ -367,7 +288,9 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
         double treeScale = treeParams.scale + randDoubleVariation(treeRandom, treeParams.scaleVariation);
         double length = (trunkParams.length + randDoubleVariation(treeRandom, trunkParams.lengthVariation)) * treeScale;
         double stemRadius = length * trunkParams.scale * treeParams.ratio;
-        double lengthBase = treeScale* treeParams.baseSize;
+        // Paper defines it as scale*baseSize, but that would give a fractional length - which doesn't make sense for
+        //  how it's used
+        double lengthBase = length*treeParams.baseSize;
 
         ArrayList<GenerationFeature> generationFeatures = new ArrayList<>(3000);
         // FIXME - Reference stores segments as nearly-circular circles between each segment, which it then connects
@@ -393,20 +316,35 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
         //      it should be (?), then stretching a mess from each branch's cross-section to the base; i.e., each branch
         //      is just my truncated cones idea, and they just join in the middle. Just do that, or would I want some
         //      way to handle this with my curved cylinders?
-        double lengthFraction = length/ trunkParams.curveRes;
-        int nChildren = branch_1.branches;
-        double branchDistance = length/nChildren;
+        double lengthFraction = length/trunkParams.curveRes;
+        int nChildren = branch_1.branches; // FIXME is this correct?
+        double branchDistance = (length-lengthBase)/nChildren;
+        trunkParams.resetSplitError();
+        for (BranchParams branchParam : branchParams) {
+            branchParam.resetSplitError();
+        }
 
         createTrunkSegment(trunkOrigin, zUnitOrigin, xUnit, new StemVec3d[]{zUnitOrigin},
-                stemRadius, 0, branchDistance/2, 0,
+                stemRadius, 0, lengthBase, 0,
+                0,
                 new TreeCreationParams(generationFeatures, treeRandom, zUnitOrigin, lengthBase),
                 new BranchCreationParams(stemRadius, lengthFraction, length, branchDistance));
         ModYggdrasil.info("Tree for sector "+sectorX+","+sectorY+","+sectorZ+" created, with origin at "+trunkOrigin.toMCVector());
         return new IntegerAABBTree(generationFeatures.toArray(new GenerationFeature[0]));
     }
 
+    public static void createBranch_1(StemVec3d origin, StemVec3d zUnit, StemVec3d xUnit,
+                                      double length, double baseRadius, int nStems, TreeCreationParams treeCreationParams) {
+        double branchDistance = length/nStems;
+        createBranchSegment_1(origin, zUnit, xUnit, new StemVec3d[] {zUnit},
+                baseRadius, 0, branchDistance/2, 0,
+                0,
+                treeCreationParams, new BranchCreationParams(baseRadius, length/branch_1.curveRes, length, branchDistance));
+    }
+
     protected static void createTrunkSegment(StemVec3d origin, StemVec3d zUnit, StemVec3d xUnit, StemVec3d[] plane1Units,
                                              double prevRadiusZ, int i, double nextChildOffset, double lastChildRotateAngle,
+                                             double remainingCorrection,
                                              TreeCreationParams treeCreationParams, BranchCreationParams branchCreationParams) {
         if (i >= trunkParams.curveRes) {
             return;
@@ -418,127 +356,67 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
         double endLength = branchCreationParams.lengthFraction *(i+1);
         double offset = nextChildOffset;
         double lastChildAngle = lastChildRotateAngle;
-        while (offset < endLength) {
-            double lengthChildMax = branch_1.length +randDoubleVariation(treeCreationParams.treeRandom, branch_1.lengthVariation);
-            double lengthChild = lengthChildMax* branchCreationParams.branchLength *getShapeRatio((branchCreationParams.branchLength -offset)/(branchCreationParams.branchLength - treeCreationParams.lengthBase));
-            double spawnLocationRadius = computeNextRadiusZ(branchCreationParams.stemRadius, trunkParams.taper, offset/branchCreationParams.branchLength);
-            double radiusChild = spawnLocationRadius*Math.pow(lengthChild/branchCreationParams.branchLength, treeParams.ratioPower);
-            double downAngleChild;
-            if (branch_1.downAngleVariation >= 0) {
-                downAngleChild = branch_1.downAngle + randDoubleVariation(treeCreationParams.treeRandom, branch_1.downAngleVariation);
-            } else {
-                // FIXME is this correct?
-                downAngleChild = branch_1.downAngle + (randDoubleVariation(treeCreationParams.treeRandom, branch_1.downAngleVariation
-                        *(1 - 2* TreeTypeParams.TreeShape.Conical.getRatio.applyAsDouble((branchCreationParams.branchLength -offset)/(branchCreationParams.branchLength - treeCreationParams.lengthBase))) ));
-            }
-            StemVec3d childZUnit = xUnit.rotateUnitVector(zUnit, downAngleChild);
-            StemVec3d childXUnit = xUnit;
+        if (treeParams.levels > 1) {
+            while (offset < endLength) { // FIXME refactor this out
+                double lengthChildMax = branch_1.length + randDoubleVariation(treeCreationParams.treeRandom, branch_1.lengthVariation);
+                double lengthChild = lengthChildMax * branchCreationParams.branchLength * getShapeRatio((branchCreationParams.branchLength - offset) / (branchCreationParams.branchLength - treeCreationParams.lengthBase));
+                double spawnLocationRadius = computeNextRadiusZ(branchCreationParams.stemRadius, trunkParams.taper, offset / branchCreationParams.branchLength);
+                double radiusChild = spawnLocationRadius * Math.pow(lengthChild / branchCreationParams.branchLength, treeParams.ratioPower);
+                double downAngleChild;
+                if (branch_1.downAngleVariation >= 0) {
+                    downAngleChild = branch_1.downAngle + randDoubleVariation(treeCreationParams.treeRandom, branch_1.downAngleVariation);
+                } else {
+                    // FIXME is this correct?
+                    downAngleChild = branch_1.downAngle + (randDoubleVariation(treeCreationParams.treeRandom, branch_1.downAngleVariation
+                            * (1 - 2 * TreeTypeParams.TreeShape.Conical.getRatio.applyAsDouble((branchCreationParams.branchLength - offset) / (branchCreationParams.branchLength - treeCreationParams.lengthBase)))));
+                }
+                StemVec3d childZUnit = xUnit.rotateUnitVector(zUnit, downAngleChild);
+                StemVec3d childXUnit = xUnit;
 
-            if (branch_1.rotate >= 0) {
-                lastChildAngle += branch_1.rotate + randDoubleVariation(treeCreationParams.treeRandom, branch_1.rotateVariation);
-                childZUnit = zUnit.rotateAbout(childZUnit, lastChildAngle);
-                childXUnit = treeCreationParams.zUnitOrigin.crossProduct(childZUnit).normalize();
-                if (childXUnit == StemVec3d.ZERO) {
-                    childXUnit = xUnit; // TODO Verify this
-                }
-            } else {
-                double angle = branch_1.rotate + randDoubleVariation(treeCreationParams.treeRandom, branch_1.rotateVariation);
-                if (lastChildAngle > 0) { // Alternate sides
-                    angle *= -1;
-                }
-                childZUnit = zUnit.rotateAbout(childZUnit, angle);
-                lastChildAngle = angle;
+                if (branch_1.rotate >= 0) {
+                    lastChildAngle += branch_1.rotate + randDoubleVariation(treeCreationParams.treeRandom, branch_1.rotateVariation);
+                    childZUnit = zUnit.rotateAbout(childZUnit, lastChildAngle);
+                    childXUnit = treeCreationParams.zUnitOrigin.crossProduct(childZUnit).normalize();
+                    if (childXUnit == StemVec3d.ZERO) {
+                        childXUnit = xUnit; // TODO Verify this
+                    }
+                } else {
+                    double angle = branch_1.rotate + randDoubleVariation(treeCreationParams.treeRandom, branch_1.rotateVariation);
+                    if (lastChildAngle > 0) { // Alternate sides
+                        angle *= -1;
+                    }
+                    childZUnit = zUnit.rotateAbout(childZUnit, angle);
+                    lastChildAngle = angle;
 //                 Or should it be:
 //                 StemVec3d yUnit = zUnit.crossProduct(xUnit);
 //                 childZUnit = yUnit.rotateAbout(childZUnit, angle);
-                childXUnit = treeCreationParams.zUnitOrigin.crossProduct(childZUnit).normalize();
-                if (childXUnit == StemVec3d.ZERO) {
-                    childXUnit = xUnit;
+                    childXUnit = treeCreationParams.zUnitOrigin.crossProduct(childZUnit).normalize();
+                    if (childXUnit == StemVec3d.ZERO) {
+                        childXUnit = xUnit;
+                    }
                 }
+
+                double localOffset = offset - branchCreationParams.lengthFraction * i;
+                StemVec3d childOrigin = origin.add(zUnit.scale(localOffset));
+                int nStems = (int) Math.round(branch_1.branches * (0.2 + 0.8 * (lengthChild / branchCreationParams.branchLength) / lengthChildMax));
+                createBranch_1(childOrigin, childZUnit, childXUnit, lengthChild, radiusChild, nStems, treeCreationParams);
+
+                offset += branchCreationParams.branchDistance;
             }
-
-            double localOffset = offset - branchCreationParams.lengthFraction*i;
-            StemVec3d childOrigin = origin.add(zUnit.scale(localOffset));
-            // TODO Spawn children
-            createBranch_1(childOrigin, childZUnit, childXUnit, lengthChild, radiusChild, treeCreationParams);
-
-            offset += branchCreationParams.branchDistance;
         }
 
         int effectiveSplits = trunkParams.getNextEffectiveSplits(i);
 
-        if (effectiveSplits == 0 || i == (trunkParams.curveRes -1)) { // No branching
-            double theta = trunkParams.curve +randDoubleVariation(treeCreationParams.treeRandom, trunkParams.curveVariation);
-            // Intersecting plane between this segment and the next. plane2Unit for curr segment is just this scaled by -1
-            StemVec3d nextPlane1Unit = xUnit.rotateUnitVector(zUnit, theta/2);
-
-            if (plane1Units.length == 1) {
-                DoubleTruncatedCone segment = new DoubleTruncatedCone(
-                        origin.toMCVector(), zUnit.toMCVector(),
-                        plane1Units[0].toMCVector(), nextPlane1Unit.scale(-1).toMCVector(),
-                        prevRadiusZ, radiusZ, branchCreationParams.lengthFraction);
-                treeCreationParams.features.add(segment);
-            } else {
-                MNTruncatedCone segment = new MNTruncatedCone(
-                        origin.toMCVector(), zUnit.toMCVector(),
-                        stemToMC(plane1Units), new Vec3d[] {nextPlane1Unit.scale(-1).toMCVector()},
-                        prevRadiusZ, radiusZ, branchCreationParams.lengthFraction);
-                treeCreationParams.features.add(segment);
-            }
-
-            StemVec3d nextZUnit = xUnit.rotateUnitVector(zUnit, theta); // Rotate next z-vector
-            StemVec3d nextOrigin = computeNextOrigin(nextPlane1Unit, origin, zUnit, nextZUnit, branchCreationParams.lengthFraction, prevRadiusZ, radiusZ);
-
-            createTrunkSegment(nextOrigin, nextZUnit, xUnit, new StemVec3d[] {nextPlane1Unit},
-                    radiusZ, i+1, offset, lastChildAngle,
-                    treeCreationParams, branchCreationParams);
+        if (effectiveSplits == 0 || i == (trunkParams.curveRes-1)) { // No branching
+            createSimpleTrunkSegment(origin, zUnit, xUnit, plane1Units, prevRadiusZ, i, remainingCorrection, treeCreationParams, branchCreationParams, radiusZ, offset, lastChildAngle);
+        } else { // Branch
+            createBranchingTrunkSegment(origin, zUnit, xUnit, plane1Units, prevRadiusZ, i, remainingCorrection, treeCreationParams, branchCreationParams, radiusZ, offset, lastChildAngle, effectiveSplits);
         }
-        else { // Branch
-            int nBranches = effectiveSplits + 1;
-            double declinationAngle = Math.acos(treeCreationParams.zUnitOrigin.dotProduct(zUnit));
-            double[] splitAngles = new double[nBranches];
-            double[] rotateAngles = new double[nBranches];
-            StemVec3d[] nextPlane1Units = new StemVec3d[nBranches];
-            StemVec3d[] nextZUnits = new StemVec3d[nBranches];
-            for (int j = 0; j < nBranches; j++) {
-                splitAngles[j] = (trunkParams.splitAngle +randDoubleVariation(treeCreationParams.treeRandom, trunkParams.splitAngleVariation)) - declinationAngle;
-                double factor = treeCreationParams.treeRandom.nextDouble();
-                rotateAngles[j] = Helpers.randDoubleSign(treeCreationParams.treeRandom)*(Math.toRadians(20) + 0.75*(Math.toRadians(30) + Math.abs(declinationAngle-Math.PI/2))*factor*factor);
-                nextZUnits[j] = treeCreationParams.zUnitOrigin.rotateAbout(xUnit.rotateUnitVector(zUnit, splitAngles[j]), rotateAngles[j]);
-                // FIXME Is this correct?
-                nextPlane1Units[j] = treeCreationParams.zUnitOrigin.rotateAbout(xUnit.rotateUnitVector(zUnit, splitAngles[j]/2), rotateAngles[j]/2);
-            }
-
-            MNTruncatedCone segment = new MNTruncatedCone(
-                    origin.toMCVector(), zUnit.toMCVector(),
-                    stemToMC(plane1Units), stemToMCAndFlip(nextPlane1Units),
-                    prevRadiusZ, radiusZ, branchCreationParams.lengthFraction);
-            treeCreationParams.features.add(segment);
-            for (int j = 0; j < nBranches; j++) {
-                StemVec3d nextOrigin = computeNextOrigin(nextPlane1Units[j], origin, zUnit, nextZUnits[j], branchCreationParams.lengthFraction, prevRadiusZ, radiusZ);
-                StemVec3d nextXUnit = treeCreationParams.zUnitOrigin.crossProduct(nextZUnits[j]).normalize();
-                // FIXME Thought of some issue?
-                if (nextXUnit == StemVec3d.ZERO) { // zUnit and zUnitOrigin are parallel
-                    nextXUnit = xUnit.rotateUnitVector(treeCreationParams.zUnitOrigin, rotateAngles[j]);
-                }
-                // FIXME Proper joining between branches.
-                createTrunkSegment(nextOrigin, nextZUnits[j], nextXUnit, new StemVec3d[] {nextPlane1Units[j]},
-                        radiusZ, i+1, offset, lastChildAngle,
-                        treeCreationParams,
-                        branchCreationParams);
-            }
-        }
-    }
-
-    public static void createBranch_1(StemVec3d origin, StemVec3d zUnit, StemVec3d xUnit,
-            double length, double baseRadius, TreeCreationParams treeCreationParams) {
-        double branchDistance = length/branch_1.branches;
-        createBranchSegment_1(origin, zUnit, xUnit, new StemVec3d[] {zUnit}, baseRadius, 0, branchDistance/2, 0,
-                treeCreationParams, new BranchCreationParams(baseRadius, length/branch_1.curveRes, length, branchDistance));
     }
 
     public static void createBranchSegment_1(StemVec3d origin, StemVec3d zUnit, StemVec3d xUnit, StemVec3d[] plane1Units,
                                              double prevRadiusZ, int i, double nextChildOffset, double lastChildRotateAngle,
+                                             double remainingCorrection,
                                              TreeCreationParams treeCreationParams, BranchCreationParams branchCreationParams) {
         BranchParams currentBranch = TreeMegaStructureGenerator.branch_1;
         if (i >= currentBranch.curveRes) {
@@ -561,13 +439,14 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
             if (nextBranch.downAngleVariation >= 0) {
                 downAngleChild = nextBranch.downAngle + randDoubleVariation(treeCreationParams.treeRandom, nextBranch.downAngleVariation);
             } else {
-//                // FIXME is using lengthBase correct?
+                // FIXME is using lengthBase correct?
+                // FIXME Might need a divide-by-zero check?
                 downAngleChild = nextBranch.downAngle + (randDoubleVariation(treeCreationParams.treeRandom, nextBranch.downAngleVariation
                         *(1 - 2* TreeTypeParams.TreeShape.Conical.getRatio.applyAsDouble((branchCreationParams.branchLength-offset)/(branchCreationParams.branchLength-treeCreationParams.lengthBase))) ));
             }
             StemVec3d childZUnit = xUnit.rotateUnitVector(zUnit, downAngleChild);
             StemVec3d childXUnit = xUnit;
-//
+
             if (currentBranch.rotate >= 0) {
                 lastChildAngle += nextBranch.rotate + randDoubleVariation(treeCreationParams.treeRandom, nextBranch.rotateVariation);
                 childZUnit = zUnit.rotateAbout(childZUnit, lastChildAngle);
@@ -600,63 +479,198 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
         int segSplitsEffective = currentBranch.getNextEffectiveSplits();
 
         if (segSplitsEffective == 0 || i == (currentBranch.curveRes-1)) { // No branching
-            double theta = currentBranch.curve+randDoubleVariation(treeCreationParams.treeRandom, currentBranch.curveVariation);
-            // Intersecting plane between this segment and the next. plane2Unit for curr segment is just this scaled by -1
-            StemVec3d nextPlane1Unit = xUnit.rotateUnitVector(zUnit, theta/2);
-
-            if (plane1Units.length == 1) {
-                DoubleTruncatedCone segment = new DoubleTruncatedCone(
-                        origin.toMCVector(), zUnit.toMCVector(),
-                        plane1Units[0].toMCVector(), nextPlane1Unit.scale(-1).toMCVector(),
-                        prevRadiusZ, radiusZ, branchCreationParams.lengthFraction);
-                treeCreationParams.features.add(segment);
-            } else {
-                MNTruncatedCone segment = new MNTruncatedCone(
-                        origin.toMCVector(), zUnit.toMCVector(),
-                        stemToMC(plane1Units), new Vec3d[] {nextPlane1Unit.scale(-1).toMCVector()},
-                        prevRadiusZ, radiusZ, branchCreationParams.lengthFraction);
-                treeCreationParams.features.add(segment);
-            }
-
-            StemVec3d nextZUnit = xUnit.rotateUnitVector(zUnit, theta); // Rotate next z-vector
-            StemVec3d nextOrigin = computeNextOrigin(nextPlane1Unit, origin, zUnit, nextZUnit, branchCreationParams.lengthFraction, prevRadiusZ, radiusZ);
-
-            createBranchSegment_1(nextOrigin, nextZUnit, xUnit, new StemVec3d[] {nextPlane1Unit},
-                    radiusZ, i+1, offset, lastChildAngle,
-                    treeCreationParams, branchCreationParams);
+            createSimpleSegmentBranch1(origin, zUnit, xUnit, plane1Units, prevRadiusZ, i, remainingCorrection, treeCreationParams, branchCreationParams, currentBranch, radiusZ, offset, lastChildAngle);
         } else { // Branch
-            // FIXME Not spreading the angleSplit over clones in the opposite direction.
-            int nBranches = segSplitsEffective + 1;
-            double declinationAngle = Math.acos(treeCreationParams.zUnitOrigin.dotProduct(zUnit));
-            double[] splitAngles = new double[nBranches];
-            double[] rotateAngles = new double[nBranches];
-            StemVec3d[] nextPlane1Units = new StemVec3d[nBranches];
-            StemVec3d[] nextZUnits = new StemVec3d[nBranches];
-            for (int j = 0; j < nBranches; j++) {
-                splitAngles[j] = (currentBranch.splitAngle+randDoubleVariation(treeCreationParams.treeRandom, currentBranch.splitAngleVariation)) - declinationAngle;
-                double factor = treeCreationParams.treeRandom.nextDouble();
-                rotateAngles[j] = Helpers.randDoubleSign(treeCreationParams.treeRandom)*(Math.toRadians(20) + 0.75*(Math.toRadians(30) + Math.abs(declinationAngle-Math.PI/2))*factor*factor);
-                nextZUnits[j] = treeCreationParams.zUnitOrigin.rotateAbout(xUnit.rotateUnitVector(zUnit, splitAngles[j]), rotateAngles[j]);
-                // FIXME Is this correct?
-                nextPlane1Units[j] = treeCreationParams.zUnitOrigin.rotateAbout(xUnit.rotateUnitVector(zUnit, splitAngles[j]/2), rotateAngles[j]/2);
-            }
+            createBranchingSegmentBranch1(origin, zUnit, xUnit, plane1Units, prevRadiusZ, i, remainingCorrection, treeCreationParams, branchCreationParams, currentBranch, radiusZ, offset, lastChildAngle, segSplitsEffective);
+        }
+    }
 
-            MNTruncatedCone segment = new MNTruncatedCone(
+    private static void createSimpleTrunkSegment(StemVec3d origin, StemVec3d zUnit, StemVec3d xUnit, StemVec3d[] plane1Units,
+                                                 double prevRadiusZ, int i, double remainingCorrection,
+                                                 TreeCreationParams treeCreationParams, BranchCreationParams branchCreationParams,
+                                                 double radiusZ, double offset, double lastChildAngle) {
+        double correction = remainingCorrection /(trunkParams.curveRes- i);
+        double theta = trunkParams.curve +randDoubleVariation(treeCreationParams.treeRandom, trunkParams.curveVariation)-correction;
+        // Intersecting plane between this segment and the next. plane2Unit for curr segment is just this scaled by -1
+        StemVec3d nextPlane1Unit = xUnit.rotateUnitVector(zUnit, theta/2);
+
+        if (plane1Units.length == 1) {
+            DoubleTruncatedCone segment = new DoubleTruncatedCone(
                     origin.toMCVector(), zUnit.toMCVector(),
-                    stemToMC(plane1Units), stemToMCAndFlip(nextPlane1Units),
+                    plane1Units[0].toMCVector(), nextPlane1Unit.scale(-1).toMCVector(),
                     prevRadiusZ, radiusZ, branchCreationParams.lengthFraction);
             treeCreationParams.features.add(segment);
-            for (int j = 0; j < nBranches; j++) {
-                StemVec3d nextOrigin = computeNextOrigin(nextPlane1Units[j], origin, zUnit, nextZUnits[j], branchCreationParams.lengthFraction, prevRadiusZ, radiusZ);
-                StemVec3d nextXUnit = treeCreationParams.zUnitOrigin.crossProduct(nextZUnits[j]).normalize();
-                if (nextXUnit == StemVec3d.ZERO) { // zUnit and zUnitOrigin are parallel
-                    nextXUnit = xUnit.rotateUnitVector(treeCreationParams.zUnitOrigin, rotateAngles[j]);
-                }
-//                // FIXME Proper joining between branches.
-                createBranchSegment_1(nextOrigin, nextZUnits[j], nextXUnit, new StemVec3d[] {nextPlane1Units[j]},
-                        radiusZ, i+1, offset, lastChildAngle,
-                        treeCreationParams, branchCreationParams);
+        } else {
+            MNTruncatedCone segment = new MNTruncatedCone(
+                    origin.toMCVector(), zUnit.toMCVector(),
+                    stemToMC(plane1Units), new Vec3d[] {nextPlane1Unit.scale(-1).toMCVector()},
+                    prevRadiusZ, radiusZ, branchCreationParams.lengthFraction);
+            treeCreationParams.features.add(segment);
+        }
+
+        StemVec3d nextZUnit = xUnit.rotateUnitVector(zUnit, theta); // Rotate next z-vector
+        StemVec3d nextOrigin = computeNextOrigin(nextPlane1Unit, origin, zUnit, nextZUnit, branchCreationParams.lengthFraction, prevRadiusZ, radiusZ);
+
+        createTrunkSegment(nextOrigin, nextZUnit, xUnit, new StemVec3d[] {nextPlane1Unit},
+                radiusZ, i +1, offset, lastChildAngle,
+                remainingCorrection - correction,
+                treeCreationParams, branchCreationParams);
+    }
+
+    private static void createSimpleSegmentBranch1(StemVec3d origin, StemVec3d zUnit, StemVec3d xUnit, StemVec3d[] plane1Units,
+                                                   double prevRadiusZ, int i, double remainingCorrection,
+                                                   TreeCreationParams treeCreationParams, BranchCreationParams branchCreationParams,
+                                                   BranchParams currentBranch, double radiusZ, double offset, double lastChildAngle) {
+        double correction = remainingCorrection /(trunkParams.curveRes- i);
+        double theta = currentBranch.curve+randDoubleVariation(treeCreationParams.treeRandom, currentBranch.curveVariation)-correction;
+        // Intersecting plane between this segment and the next. plane2Unit for curr segment is just this scaled by -1
+        StemVec3d nextPlane1Unit = xUnit.rotateUnitVector(zUnit, theta/2);
+
+        if (plane1Units.length == 1) {
+            DoubleTruncatedCone segment = new DoubleTruncatedCone(
+                    origin.toMCVector(), zUnit.toMCVector(),
+                    plane1Units[0].toMCVector(), nextPlane1Unit.scale(-1).toMCVector(),
+                    prevRadiusZ, radiusZ, branchCreationParams.lengthFraction);
+            treeCreationParams.features.add(segment);
+        } else {
+            MNTruncatedCone segment = new MNTruncatedCone(
+                    origin.toMCVector(), zUnit.toMCVector(),
+                    stemToMC(plane1Units), new Vec3d[] {nextPlane1Unit.scale(-1).toMCVector()},
+                    prevRadiusZ, radiusZ, branchCreationParams.lengthFraction);
+            treeCreationParams.features.add(segment);
+        }
+
+        StemVec3d nextZUnit = xUnit.rotateUnitVector(zUnit, theta); // Rotate next z-vector
+        StemVec3d nextOrigin = computeNextOrigin(nextPlane1Unit, origin, zUnit, nextZUnit, branchCreationParams.lengthFraction, prevRadiusZ, radiusZ);
+
+        createBranchSegment_1(nextOrigin, nextZUnit, xUnit, new StemVec3d[] {nextPlane1Unit},
+                radiusZ, i +1, offset, lastChildAngle,
+                remainingCorrection -correction,
+                treeCreationParams, branchCreationParams);
+    }
+
+    private static void createSimpleSegment(StemVec3d origin, StemVec3d zUnit, StemVec3d xUnit, StemVec3d[] plane1Units,
+                                                   double prevRadiusZ, int i, double remainingCorrection,
+                                                   TreeCreationParams treeCreationParams, BranchCreationParams branchCreationParams,
+                                                   int level, double radiusZ, double offset, double lastChildAngle) {
+        StemParams tempParams = fetchParams(level);
+        double correction = remainingCorrection/(tempParams.curveRes- i);
+        double theta = tempParams.curve+randDoubleVariation(treeCreationParams.treeRandom, tempParams.curveVariation)-correction;
+        // Intersecting plane between this segment and the next. plane2Unit for curr segment is just this scaled by -1
+        StemVec3d nextPlane1Unit = xUnit.rotateUnitVector(zUnit, theta/2);
+
+        if (plane1Units.length == 1) {
+            DoubleTruncatedCone segment = new DoubleTruncatedCone(
+                    origin.toMCVector(), zUnit.toMCVector(),
+                    plane1Units[0].toMCVector(), nextPlane1Unit.scale(-1).toMCVector(),
+                    prevRadiusZ, radiusZ, branchCreationParams.lengthFraction);
+            treeCreationParams.features.add(segment);
+        } else {
+            MNTruncatedCone segment = new MNTruncatedCone(
+                    origin.toMCVector(), zUnit.toMCVector(),
+                    stemToMC(plane1Units), new Vec3d[] {nextPlane1Unit.scale(-1).toMCVector()},
+                    prevRadiusZ, radiusZ, branchCreationParams.lengthFraction);
+            treeCreationParams.features.add(segment);
+        }
+
+        StemVec3d nextZUnit = xUnit.rotateUnitVector(zUnit, theta); // Rotate next z-vector
+        StemVec3d nextOrigin = computeNextOrigin(nextPlane1Unit, origin, zUnit, nextZUnit, branchCreationParams.lengthFraction, prevRadiusZ, radiusZ);
+
+        // FIXME
+        createBranchSegment_1(nextOrigin, nextZUnit, xUnit, new StemVec3d[] {nextPlane1Unit},
+                radiusZ, i +1, offset, lastChildAngle,
+                remainingCorrection -correction,
+                treeCreationParams, branchCreationParams);
+    }
+
+    private static void createBranchingTrunkSegment(StemVec3d origin, StemVec3d zUnit, StemVec3d xUnit, StemVec3d[] plane1Units,
+                                                    double prevRadiusZ, int i, double remainingCorrection,
+                                                    TreeCreationParams treeCreationParams, BranchCreationParams branchCreationParams,
+                                                    double radiusZ, double offset, double lastChildAngle, int effectiveSplits) {
+        int nBranches = effectiveSplits + 1;
+        double declinationAngle = Math.acos(treeCreationParams.zUnitOrigin.dotProduct(zUnit));
+        double[] splitAngles = new double[nBranches];
+        double[] rotateAngles = new double[nBranches];
+        StemVec3d[] nextPlane1Units = new StemVec3d[nBranches];
+        StemVec3d[] nextZUnits = new StemVec3d[nBranches];
+
+        for (int j = 0; j < nBranches; j++) {
+            splitAngles[j] = Math.max(0, (trunkParams.splitAngle + randDoubleVariation(treeCreationParams.treeRandom, trunkParams.splitAngleVariation)) - declinationAngle);
+            double factor = treeCreationParams.treeRandom.nextDouble();
+            // From https://sourceforge.net/p/arbaro/code/HEAD/tree/trunk/arbaro/src/net/sourceforge/arbaro/tree/impl/StemImpl.java#l1121
+            // Makes the base split more natural - tree isn't all towards one side.
+            if (i == 0 && trunkParams.baseSplits > 0) {
+                rotateAngles[j] = (2*Math.PI)*((double) j)/((double)nBranches)+randDoubleVariation(treeCreationParams.treeRandom, trunkParams.splitAngleVariation);
+            } else {
+                rotateAngles[j] = Helpers.randDoubleSign(treeCreationParams.treeRandom)*(Math.toRadians(20) + 0.75*(Math.toRadians(30) + Math.abs(declinationAngle-Math.PI/2))*factor*factor);
             }
+            nextZUnits[j] = treeCreationParams.zUnitOrigin.rotateAbout(xUnit.rotateUnitVector(zUnit, splitAngles[j]), rotateAngles[j]);
+//                // FIXME Is this correct?
+//                nextPlane1Units[j] = treeCreationParams.zUnitOrigin.rotateAbout(xUnit.rotateUnitVector(zUnit, splitAngles[j]/2), rotateAngles[j]/2);
+            // Other way:
+            nextPlane1Units[j] = nextZUnits[j].add(zUnit).normalize();
+            if (nextPlane1Units[j].isZero()) {
+                nextPlane1Units[j] = zUnit;
+            }
+        }
+
+        MNTruncatedCone segment = new MNTruncatedCone(
+                origin.toMCVector(), zUnit.toMCVector(),
+                stemToMC(plane1Units), stemToMCAndFlip(nextPlane1Units),
+                prevRadiusZ, radiusZ, branchCreationParams.lengthFraction);
+        treeCreationParams.features.add(segment);
+
+        for (int j = 0; j < nBranches; j++) {
+            StemVec3d nextOrigin = computeNextOrigin(nextPlane1Units[j], origin, zUnit, nextZUnits[j], branchCreationParams.lengthFraction, prevRadiusZ, radiusZ);
+            StemVec3d nextXUnit = treeCreationParams.zUnitOrigin.crossProduct(nextZUnits[j]).normalize();
+            // FIXME Thought of some issue?
+            if (nextXUnit == StemVec3d.ZERO) { // zUnit and zUnitOrigin are parallel
+                nextXUnit = xUnit.rotateUnitVector(treeCreationParams.zUnitOrigin, rotateAngles[j]);
+            }
+
+            // FIXME Proper joining between branches.
+            createTrunkSegment(nextOrigin, nextZUnits[j], nextXUnit, new StemVec3d[] {nextPlane1Units[j]},
+                    radiusZ, i +1, offset, lastChildAngle,
+                    remainingCorrection + splitAngles[j],
+                    treeCreationParams, branchCreationParams);
+        }
+    }
+
+    private static void createBranchingSegmentBranch1(StemVec3d origin, StemVec3d zUnit, StemVec3d xUnit, StemVec3d[] plane1Units,
+                                                      double prevRadiusZ, int i, double remainingCorrection,
+                                                      TreeCreationParams treeCreationParams, BranchCreationParams branchCreationParams,
+                                                      BranchParams currentBranch, double radiusZ, double offset, double lastChildAngle, int segSplitsEffective) {
+        int nBranches = segSplitsEffective + 1;
+        double declinationAngle = Math.acos(treeCreationParams.zUnitOrigin.dotProduct(zUnit));
+        double[] splitAngles = new double[nBranches];
+        double[] rotateAngles = new double[nBranches];
+        StemVec3d[] nextPlane1Units = new StemVec3d[nBranches];
+        StemVec3d[] nextZUnits = new StemVec3d[nBranches];
+        for (int j = 0; j < nBranches; j++) {
+            splitAngles[j] = (currentBranch.splitAngle+randDoubleVariation(treeCreationParams.treeRandom, currentBranch.splitAngleVariation)) - declinationAngle;
+            double factor = treeCreationParams.treeRandom.nextDouble();
+            rotateAngles[j] = Helpers.randDoubleSign(treeCreationParams.treeRandom)*(Math.toRadians(20) + 0.75*(Math.toRadians(30) + Math.abs(declinationAngle-Math.PI/2))*factor*factor);
+            nextZUnits[j] = treeCreationParams.zUnitOrigin.rotateAbout(xUnit.rotateUnitVector(zUnit, splitAngles[j]), rotateAngles[j]);
+            // FIXME Is this correct?
+            nextPlane1Units[j] = treeCreationParams.zUnitOrigin.rotateAbout(xUnit.rotateUnitVector(zUnit, splitAngles[j]/2), rotateAngles[j]/2);
+        }
+
+        MNTruncatedCone segment = new MNTruncatedCone(
+                origin.toMCVector(), zUnit.toMCVector(),
+                stemToMC(plane1Units), stemToMCAndFlip(nextPlane1Units),
+                prevRadiusZ, radiusZ, branchCreationParams.lengthFraction);
+        treeCreationParams.features.add(segment);
+        for (int j = 0; j < nBranches; j++) {
+            StemVec3d nextOrigin = computeNextOrigin(nextPlane1Units[j], origin, zUnit, nextZUnits[j], branchCreationParams.lengthFraction, prevRadiusZ, radiusZ);
+            StemVec3d nextXUnit = treeCreationParams.zUnitOrigin.crossProduct(nextZUnits[j]).normalize();
+            if (nextXUnit == StemVec3d.ZERO) { // zUnit and zUnitOrigin are parallel
+                nextXUnit = xUnit.rotateUnitVector(treeCreationParams.zUnitOrigin, rotateAngles[j]);
+            }
+//                // FIXME Proper joining between branches.
+            createBranchSegment_1(nextOrigin, nextZUnits[j], nextXUnit, new StemVec3d[] {nextPlane1Units[j]},
+                    radiusZ, i +1, offset, lastChildAngle,
+                    remainingCorrection +splitAngles[j],
+                    treeCreationParams, branchCreationParams);
         }
     }
 

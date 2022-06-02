@@ -23,7 +23,6 @@ public class MNTruncatedCone implements GenerationFeature {
     private final Vec3d origin, coneEndOrigin, coneUnit, coneVector;
     private final Vec3d[] plane1Units, plane2Units;
     private final double radius1, radius2, length, coneSlope, cubeDistance;
-    private static final boolean DEBUG = true;
 
     public MNTruncatedCone(Vec3d origin, Vec3d coneUnit, Vec3d[] plane1Units, Vec3d[] plane2Units,
                            double radius1, double radius2, double length) {
@@ -65,7 +64,7 @@ public class MNTruncatedCone implements GenerationFeature {
         this.radius1 = radius1;
         this.radius2 = radius2;
         this.length = length;
-        this.cubeDistance = 8 * Math.sqrt(3) / Math.cos(coneAngle);
+        this.cubeDistance = Constants.cubeHalfDiagonal / Math.cos(coneAngle);
     }
 
     @Override
@@ -125,11 +124,13 @@ public class MNTruncatedCone implements GenerationFeature {
      * planes' normals' origins (I.e. all planes should intersect at the same point).
      * @param planes
      * @param point
+     * @param tolerance How far outside the plane the point can be before being actually being counted as outside the
+     *                  plane. Or in other words, it shifts each plane back by this many units.
      * @return
      */
-    private boolean isInAllPlanes(Vec3d[] planes, Vec3d point) {
+    private boolean isInAllPlanes(Vec3d[] planes, Vec3d point, double tolerance) {
         for (Vec3d planeNormal : planes) {
-            if ((planeNormal.dotProduct(point) < 0)) { // Outside the plane.
+            if ((planeNormal.dotProduct(point) < -tolerance)) { // Outside the plane.
                 return false;
             }
         }
@@ -161,7 +162,8 @@ public class MNTruncatedCone implements GenerationFeature {
                 pos.getXCenter()-coneEndOrigin.x,
                 pos.getYCenter()-coneEndOrigin.y,
                 pos.getZCenter()-coneEndOrigin.z);
-        if (isInAllPlanes(plane1Units, cubeVector) && isInAllPlanes(plane2Units, cubeVector2)) {
+        if (isInAllPlanes(plane1Units, cubeVector, Constants.cubeHalfDiagonal)
+                && isInAllPlanes(plane2Units, cubeVector2, Constants.cubeHalfDiagonal)) {
             // Check if the point is outside any of the truncation planes on the smaller end
             double dot = coneUnit.dotProduct(cubeVector); // cube vector's length along the cylinder's main axis
             // cube vector's radial distance from cone's axis, squared
@@ -240,7 +242,7 @@ public class MNTruncatedCone implements GenerationFeature {
                 }
             }
         }
-        if (DEBUG) {
+        if (Constants.DEBUG) {
             Vec3i debugCubeRay = pos.getMinBlockPos();
             IntegerMinimumAABB box = this.getMinimumBoundingBox();
             IntegerAABB blockBox = new IntegerAABB(Coords.cubeToMinBlock(box.minX), Coords.cubeToMinBlock(box.minY),

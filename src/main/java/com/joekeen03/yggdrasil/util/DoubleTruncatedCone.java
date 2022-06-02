@@ -1,6 +1,5 @@
 package com.joekeen03.yggdrasil.util;
 
-import com.joekeen03.yggdrasil.world.structure.TreeMegaStructureGenerator;
 import io.github.opencubicchunks.cubicchunks.api.util.Coords;
 import io.github.opencubicchunks.cubicchunks.api.util.CubePos;
 import io.github.opencubicchunks.cubicchunks.api.world.ICube;
@@ -18,7 +17,7 @@ import static com.joekeen03.yggdrasil.util.TaperedCylinder.sqrt2;
 public class DoubleTruncatedCone implements GenerationFeature {
     private final Vec3d origin, coneEndOrigin, coneUnit, plane1Unit, plane2Unit;
     private final double radius1, radius2, length, coneSlope, cubeDistance;
-    private static final boolean DEBUG = true;
+
     // Represents a cone truncated by two planes, which aren't necessarily parallel to
     //  one another, or perpendicular to the cone's axis
     public DoubleTruncatedCone(Vec3d origin, Vec3d coneUnit, Vec3d plane1Unit, Vec3d plane2Unit,
@@ -54,7 +53,7 @@ public class DoubleTruncatedCone implements GenerationFeature {
         this.radius1 = radius1;
         this.radius2 = radius2;
         this.length = length;
-        this.cubeDistance = 8 * Math.sqrt(3) / Math.cos(coneAngle);
+        this.cubeDistance = Constants.cubeHalfDiagonal / Math.cos(coneAngle);
     }
 
     @Override
@@ -117,7 +116,9 @@ public class DoubleTruncatedCone implements GenerationFeature {
                 pos.getXCenter()-coneEndOrigin.x,
                 pos.getYCenter()-coneEndOrigin.y,
                 pos.getZCenter()-coneEndOrigin.z);
-        if ((plane1Unit.dotProduct(cubeVector) >= 0) && (plane2Unit.dotProduct(cubeVector2) >= 0)) {
+        // At least one bit of the cube should be within the shape.
+        if ((plane1Unit.dotProduct(cubeVector) >= Constants.cubeHalfDiagonal)
+                && (plane2Unit.dotProduct(cubeVector2) >= Constants.cubeHalfDiagonal)) {
             double dot = coneUnit.dotProduct(cubeVector); // cube vector's length along the cylinder's main axis
             // cube vector's radial distance from cone's axis, squared
             double radial2 = cubeVector.lengthSquared()-dot*dot;
@@ -196,7 +197,7 @@ public class DoubleTruncatedCone implements GenerationFeature {
                     }
                 }
             }
-        if (DEBUG) {
+        if (Constants.DEBUG) {
             Vec3i debugCubeRay = pos.getMinBlockPos();
             IntegerMinimumAABB box = this.getMinimumBoundingBox();
             IntegerAABB blockBox = new IntegerAABB(Coords.cubeToMinBlock(box.minX), Coords.cubeToMinBlock(box.minY),
