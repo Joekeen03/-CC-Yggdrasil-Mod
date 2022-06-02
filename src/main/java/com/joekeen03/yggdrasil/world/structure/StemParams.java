@@ -35,4 +35,6 @@ public abstract class StemParams {
         segSplitsError -= segSplitsEffective-splits;
         return segSplitsEffective;
     }
+
+    public abstract int getNextEffectiveSplits(int i);
 }

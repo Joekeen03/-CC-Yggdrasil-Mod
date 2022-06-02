@@ -21,6 +21,11 @@ public class BranchParams extends StemParams {
 
     // FIXME Should this be moved to a separate class? I.e. treat this class as level-global constant data, and another
     //  class holds level-global volatile data?
+    @Override
+    public int getNextEffectiveSplits(int i) {
+        return getNextEffectiveSplits(segSplits);
+    }
+    @Deprecated
     public int getNextEffectiveSplits() {
         return getNextEffectiveSplits(segSplits);
     }

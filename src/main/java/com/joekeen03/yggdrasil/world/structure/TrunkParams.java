@@ -23,6 +23,7 @@ public class TrunkParams extends StemParams {
 
     // FIXME Should this be moved to a separate class? I.e. treat this class as level-global constant data, and another
     //  class holds level-global volatile data?
+    @Override
     public int getNextEffectiveSplits(int i) {
         if (i == 0) {
             return getNextEffectiveSplits(baseSplits);
