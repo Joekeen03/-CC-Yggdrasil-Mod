@@ -79,7 +79,7 @@ public class MNTruncatedCone implements GenerationFeature {
         // Max slope of the plane, relative to plane perpendicular to coneUnit
 
         double plane1Slope = Helpers.arraySectionMax(plane1Units, 0, plane1Units.length,
-                (ToDoubleFunction<Vec3d>) plane1Unit -> Math.tan(Math.acos(coneUnit.dotProduct(plane1Unit))));
+                (ToDoubleFunction<Vec3d>) plane1Unit -> Math.tan(Helpers.safeACos(coneUnit.dotProduct(plane1Unit))));
         // Can determine max length and max radius by finding the intersection of two lines - one is the line of max
         //  slope for plane1, and one is the side of the cone co-planar with that line of max slope.
         double maxRadius = -(coneSlope*radius1)/(plane1Slope-coneSlope);

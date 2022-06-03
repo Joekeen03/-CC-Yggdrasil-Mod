@@ -11,7 +11,7 @@ import javax.annotation.Nullable;
 
 public class WorldTypeYggdrasil extends WorldType implements ICubicWorldType {
     protected WorldTypeYggdrasil() {
-        super("WorldYggdrasil");
+        super("Yggdrasil");
     }
 
     public static WorldTypeYggdrasil create() {

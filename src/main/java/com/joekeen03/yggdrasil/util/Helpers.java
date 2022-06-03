@@ -94,6 +94,11 @@ public class Helpers {
         return xDiff*xDiff+zDiff*zDiff;
     }
 
+    public static double safeACos(double a) {
+        a = Math.max(-1.0, Math.min(1.0, a));
+        return Math.acos(a);
+    }
+
     public static double randDoubleSign(Random rand) {
         return (rand.nextBoolean()) ? 1.0 : -1.0;
     }

@@ -66,7 +66,7 @@ public class DoubleTruncatedCone implements GenerationFeature {
         //  intersects it. Another way to look at it is that it's the radius of the lowest point on the cone (furthest
         //  from apex) at which plane1 intersects the cone.
         // Max slope of the plane, relative to plane perpendicular to coneUnit
-        double plane1Slope = Math.tan(Math.acos(coneUnit.dotProduct(plane1Unit)));
+        double plane1Slope = Math.tan(Helpers.safeACos(coneUnit.dotProduct(plane1Unit)));
         // Can determine max length and max radius by finding the intersection of two lines - one is the line of max
         //  slope for plane1, and one is the side of the cone co-planar with that line of max slope.
         double maxRadius = -(coneSlope*radius1)/(plane1Slope-coneSlope);
