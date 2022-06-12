@@ -27,14 +27,17 @@ public class MNTruncatedCone implements GenerationFeature {
     public MNTruncatedCone(Vec3d origin, Vec3d coneUnit, Vec3d[] plane1Units, Vec3d[] plane2Units,
                            double radius1, double radius2, double length) {
         if (radius2 < 0) {
-            throw new InvalidValueException("DoubleTruncatedCone received negative second radius.");
+            throw new InvalidValueException("MNTruncatedCone received negative second radius.");
         }
         if (radius1 <= radius2) {
-            throw new InvalidValueException("DoubleTruncatedCone received second radius"+
+            throw new InvalidValueException("MNTruncatedCone received second radius"+
                     "which was greater than/equal to first radius.");
         }
         if (length < 0) {
-            throw new InvalidValueException("DoubleTruncatedCone received negative length.");
+            throw new InvalidValueException("MNTruncatedCone received negative length.");
+        }
+        if (Helpers.hasNaN(origin)) {
+            throw new InvalidValueException("MNTruncatedCone received origin with NaNs.");
         }
         // Max angle a plane's unit vector should be from the cone vector.
         this.coneSlope = length/(radius1-radius2);
@@ -45,13 +48,13 @@ public class MNTruncatedCone implements GenerationFeature {
         //  so long as they bound their end of the cone.
         for (Vec3d plane1Unit : plane1Units) {
             if (coneUnit.dotProduct(plane1Unit) <= Math.cos(minUnit1Angle)) {
-                throw new InvalidValueException("DoubleTruncatedCone received plane1Unit vector which was pi/2 radians or " +
+                throw new InvalidValueException("MNTruncatedCone received plane1Unit vector which was pi/2 radians or " +
                         "more away from the coneUnit vector.");
             }
         }
         for (Vec3d plane2Unit : plane2Units) {
             if (coneUnit.dotProduct(plane2Unit) >= Math.cos(maxUnit2Angle)) {
-                throw new InvalidValueException("DoubleTruncatedCone received plane2Unit vector which was pi/2 radians or " +
+                throw new InvalidValueException("MNTruncatedCone received plane2Unit vector which was pi/2 radians or " +
                         "less away from the coneUnit vector.");
             }
         }

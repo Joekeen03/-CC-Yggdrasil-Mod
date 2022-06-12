@@ -21,7 +21,8 @@ import java.util.Random;
 
 public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
     private static final int TREE_RATE = 5; // On average, 1 out of this many sectors will spawn a tree.
-    private static final int treeWidth=512;
+    private static final long KEY_MASK = (1<<(22-1))-1;
+    private static final int treeWidth=1024;
     private static final int treeHeight=2048;
     private static final int xzSectorSize = treeWidth/2;
     private static final int ySectorSize = treeHeight/2;
@@ -75,7 +76,7 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
                     int sectorZ = cubeSectorZ+Math.floorMod(z, 3)-1;
                     long randZ = sectorZ * randZMul ^ randY;
                     rand.setSeed(randZ);
-                              this.generate(world, rand, cube, sectorX, sectorY, sectorZ, cubePos);
+                    this.generate(world, rand, cube, sectorX, sectorY, sectorZ, cubePos);
                 }
             }
         }
@@ -134,9 +135,9 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
     public static IntegerAABBTree fetchTree(Random structureRandom, int sectorX, int sectorY, int sectorZ) {
         // TODO would it be faster to instead always fetch the tree, and instead have a "null" tree for sectors that
         //  shouldn't have one in them?
-        long key = ((long) sectorX << 44) | ((long) sectorY << 22) | sectorZ;
+        long key = ((KEY_MASK & sectorX) << 44) | ((KEY_MASK & sectorY) << 22) | (KEY_MASK & sectorZ);
         synchronized (treeCache) {
-            // Manual computeIfAbsent, since Long2ObjectHashMap doesn't have one which takes LongFunction.
+            // Manual computeIfAbsent, since Long2ObjectHashMap doesn't have one which takes a LongFunction.
             if (!treeCache.containsKey(key)) {
                 ModYggdrasil.info("Creating tree at sector "+sectorX+","+sectorY+","+sectorZ);
                 treeCache.put(key, createTree(structureRandom,
@@ -208,52 +209,9 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
     // I'm going to say the absolute axes within tree-space (the ones all the other axes are transformations of)
     //  correspond to MC's coord system as follows: x_tree -> z_MC, y_tree -> x_MC, z_tree -> y_MC
 
-    private static final double TEMP = 0;
-
-    // 0-level (trunk) parameters
     // TODO Implement an nSegsBase, which prevents cloning before a certain point? Or...could just have
     //  baseSplits=segSplits=0, baseLength=0.95, and 0branches=7.
-    private static final TrunkParams trunkParams = new TrunkParams(
-            1.0, 0.1,
-            300, 75, 0.2,
-            3.5,
-            1, Math.toRadians(70), Math.toRadians(10),
-            3, Math.toRadians(0), Math.toRadians(0), Math.toRadians(0));
-
-    private static final BranchParams branch_1 = new BranchParams(
-            Math.toRadians(45), Math.toRadians(-45),
-            Math.toRadians(100), Math.toRadians(10), 10,
-            0.9, 0.05, 0.8,
-            0.0, Math.toRadians(10), Math.toRadians(10),
-            20, Math.toRadians(1), Math.toRadians(0), Math.toRadians(0.5));
-
-    private static final BranchParams branch_2 = new BranchParams(
-            Math.toRadians(30), Math.toRadians(10),
-            Math.toRadians(10), Math.toRadians(10), 20,
-            0.5, 0.05, 1.0,
-            0.1, Math.toRadians(40), Math.toRadians(10),
-            10, Math.toRadians(7), Math.toRadians(0), Math.toRadians(3));
-
-    private static final BranchParams[] branchParams = new BranchParams[] {branch_1, branch_2};
-    private static final TreeTypeParams treeParams = new TreeTypeParams(
-            "Testing",
-            TreeTypeParams.TreeShape.Cylindrical,
-            0.95,
-            1.0, 0.1, TEMP, TEMP,
-            1,
-            0.06, 1.2,
-            (int)TEMP, TEMP,
-            TEMP,
-            trunkParams,
-            branchParams);
-
-    private static StemParams fetchParams(int level) {
-        if (level == 0) {
-            return trunkParams;
-        } else {
-            return branchParams[level-1];
-        }
-    }
+    private static final TreeTypeParams treeParams = PossibleMegaTreeParams.SlightLevel1Splitting();
 
     protected static IntegerAABBTree createTree(Random treeRandom, int sectorX, int sectorY, int sectorZ) {
         // Generate trunk - recursive level 0
@@ -271,8 +229,8 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
         StemVec3d xUnit = new StemVec3d(Math.cos(xAngle), Math.sin(xAngle), 0);
 
         double treeScale = treeParams.scale + randDoubleVariation(treeRandom, treeParams.scaleVariation);
-        double length = (trunkParams.length + randDoubleVariation(treeRandom, trunkParams.lengthVariation)) * treeScale;
-        double stemRadius = length * trunkParams.scale * treeParams.ratio;
+        double length = (treeParams.trunkParams.length + randDoubleVariation(treeRandom, treeParams.trunkParams.lengthVariation)) * treeScale;
+        double stemRadius = length * treeParams.trunkParams.scale * treeParams.ratio;
         // Paper defines it as scale*baseSize, but that would give a fractional length - which doesn't make sense for
         //  how it's used
         double lengthBase = length*treeParams.baseSize;
@@ -301,32 +259,33 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
         //      it should be (?), then stretching a mess from each branch's cross-section to the base; i.e., each branch
         //      is just my truncated cones idea, and they just join in the middle. Just do that, or would I want some
         //      way to handle this with my curved cylinders?
-        trunkParams.resetSplitError();
-        for (BranchParams branchParam : branchParams) {
-            branchParam.resetSplitError();
+        treeParams.trunkParams.resetSplitError(treeRandom);
+        for (BranchParams branchParam : treeParams.branchParams) {
+            branchParam.resetSplitError(treeRandom);
         }
 
         int nChildren = 0;
         if (treeParams.levels > 0) {
-            nChildren = ((BranchParams) fetchParams(1)).branches;
+            nChildren = ((BranchParams) treeParams.fetchParams(1)).branches;
         }
         createBranch(trunkOrigin, zUnitOrigin, xUnit,
                 length, stemRadius, nChildren,
-                0, new TreeCreationParams(generationFeatures, treeRandom, zUnitOrigin, lengthBase));
+                0, new TreeCreationParams(generationFeatures, treeRandom, xUnit, zUnitOrigin.crossProduct(xUnit).normalize(), zUnitOrigin, lengthBase));
         ModYggdrasil.info("Tree for sector "+sectorX+","+sectorY+","+sectorZ+" created, with origin at "+trunkOrigin.toMCVector());
         return new IntegerAABBTree(generationFeatures.toArray(new GenerationFeature[0]));
     }
 
     public static void createBranch(StemVec3d origin, StemVec3d zUnit, StemVec3d xUnit,
-                                    double length, double baseRadius, int nStems,
+                                    double length, double baseRadius, int nChildren,
                                     int level, TreeCreationParams treeCreationParams) {
-        double branchDistance = length/nStems;
+        double branchDistance = length/nChildren;
         double firstChildOffset = branchDistance/2;
         if (level == 0) {
-            branchDistance = (length-treeCreationParams.lengthBase)/nStems;
+            branchDistance = (length-treeCreationParams.lengthBase)/(nChildren-1)*.999; // So the last branch ends up at the trunk's end
+            // FIXME ensuring the last branch ends up at the end of the trunk isn't always applicable
             firstChildOffset = treeCreationParams.lengthBase;
         }
-        StemParams branch = fetchParams(level);
+        StemParams branch = treeParams.fetchParams(level);
         createSegment(origin, zUnit, xUnit, new StemVec3d[] {zUnit},
                 baseRadius, 0, firstChildOffset, 0,
                 0, level,
@@ -337,7 +296,7 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
                                              double prevRadiusZ, int i, double nextChildOffset, double lastChildRotateAngle,
                                              double remainingCorrection, int level,
                                              TreeCreationParams treeCreationParams, BranchCreationParams branchCreationParams) {
-        StemParams currBranch = fetchParams(level);
+        StemParams currBranch = treeParams.fetchParams(level);
         if (i >= currBranch.curveRes) {
             return;
         }
@@ -351,7 +310,7 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
         final int nextLevel = level+1;
         if (nextLevel < treeParams.levels) {
             while (offset < endLength) {
-                BranchParams nextBranch = (BranchParams)fetchParams(nextLevel);
+                BranchParams nextBranch = (BranchParams)treeParams.fetchParams(nextLevel);
                 double lengthChildMax = nextBranch.length+randDoubleVariation(treeCreationParams.treeRandom, nextBranch.lengthVariation);
                 double lengthChild = lengthChildMax*(branchCreationParams.branchLength-0.6*offset);
                 if (nextLevel == 1) {
@@ -366,8 +325,17 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
                 } else {
                     // FIXME is using lengthBase correct?
                     // FIXME Might need a divide-by-zero check?
-                    downAngleChild = nextBranch.downAngle+(randDoubleVariation(treeCreationParams.treeRandom, nextBranch.downAngleVariation)
-                            *(1-2*TreeTypeParams.TreeShape.Conical.getRatio.applyAsDouble((branchCreationParams.branchLength-offset)/(branchCreationParams.branchLength-treeCreationParams.lengthBase))) );
+//                    // Using random variation of [downAngleVariation, 0) instead of [downAngleVariation, downAngleVariation),
+//                    // as the point of this is that the branches generally point more and more upwards as you go along the branch.
+//                    downAngleChild = nextBranch.downAngle+(Helpers.randDoubleRange(treeCreationParams.treeRandom, nextBranch.downAngleVariation, 0)
+//                            *(1-2*TreeTypeParams.TreeShape.Conical.getRatio.applyAsDouble(
+//                                    (branchCreationParams.branchLength-offset)/(branchCreationParams.branchLength-treeCreationParams.lengthBase))) );
+                    // Using the downangle formula as given in the paper, where downAngleVariation is scaled by the
+                    //  offset formula (1-2*...) and added to downAngle, instead of scaling a random value in the range
+                    //  [downAngleVariation, 0) and scaling that.
+                    downAngleChild = nextBranch.downAngle+(nextBranch.downAngleVariation
+                            *(1-2*TreeTypeParams.TreeShape.Conical.getRatio.applyAsDouble(
+                                    (branchCreationParams.branchLength-offset)/(branchCreationParams.branchLength-treeCreationParams.lengthBase))) );
                 }
                 StemVec3d childZUnit = xUnit.rotateUnitVector(zUnit, downAngleChild);
                 StemVec3d childXUnit = xUnit;
@@ -431,11 +399,24 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
                                             double prevRadiusZ, int i, double remainingCorrection, double lastChildAngle,
                                             int level, double radiusZ, double offset,
                                             TreeCreationParams treeCreationParams, BranchCreationParams branchCreationParams) {
-        StemParams tempParams = fetchParams(level);
-        double correction = remainingCorrection/(tempParams.curveRes- i);
-        double theta = tempParams.curve+randDoubleVariation(treeCreationParams.treeRandom, tempParams.curveVariation)-correction;
+        StemParams branch = treeParams.fetchParams(level);
+        double correction = remainingCorrection/(branch.curveRes-i);
+        double theta = (branch.curve+randDoubleVariation(treeCreationParams.treeRandom, branch.curveVariation))/branch.curveRes-correction;
+        StemVec3d nextZUnit = xUnit.rotateUnitVector(zUnit, theta); // Rotate next z-vector
+        // Vertical attraction
+        // FIXME not sure if this is meant to transform a stem based on its own current orientation due to curvature,
+        //  or its predecessor's orientation due to curvature?
+        if (level > 1){
+            double declination = Math.acos(nextZUnit.z);
+            double orientation = Helpers.safeACos(nextZUnit.crossProduct(xUnit).z);
+            double curveUp = treeParams.attractionUp * declination * Math.cos(orientation) / branch.curveRes;
+            nextZUnit = xUnit.rotateUnitVector(nextZUnit, -curveUp);
+        }
         // Intersecting plane between this segment and the next. plane2Unit for curr segment is just this scaled by -1
-        StemVec3d nextPlane1Unit = xUnit.rotateUnitVector(zUnit, theta/2);
+        StemVec3d nextPlane1Unit = nextZUnit.add(zUnit).normalize();
+        if (nextPlane1Unit.isZero()) {
+            nextPlane1Unit = zUnit;
+        }
 
         if (plane1Units.length == 1) {
             DoubleTruncatedCone segment = new DoubleTruncatedCone(
@@ -451,7 +432,6 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
             treeCreationParams.features.add(segment);
         }
 
-        StemVec3d nextZUnit = xUnit.rotateUnitVector(zUnit, theta); // Rotate next z-vector
         StemVec3d nextOrigin = computeNextOrigin(nextPlane1Unit, origin, zUnit, nextZUnit, branchCreationParams.lengthFraction, prevRadiusZ, radiusZ);
 
         // FIXME
@@ -470,7 +450,8 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
         double[] rotateAngles = new double[nBranches];
         StemVec3d[] nextPlane1Units = new StemVec3d[nBranches];
         StemVec3d[] nextZUnits = new StemVec3d[nBranches];
-        StemParams stemParams = fetchParams(level);
+        StemParams stemParams = treeParams.fetchParams(level);
+        double lastSign = Helpers.randDoubleSign(treeCreationParams.treeRandom);
 
         for (int j = 0; j < nBranches; j++) {
             splitAngles[j] = Math.max(0, (stemParams.splitAngle + randDoubleVariation(treeCreationParams.treeRandom, stemParams.splitAngleVariation)) - declinationAngle);
@@ -480,7 +461,11 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
                 rotateAngles[j] = (2*Math.PI)*((double) j)/((double)nBranches)+randDoubleVariation(treeCreationParams.treeRandom, stemParams.splitAngleVariation);
             } else {
                 double factor = treeCreationParams.treeRandom.nextDouble();
-                rotateAngles[j] = Helpers.randDoubleSign(treeCreationParams.treeRandom)*(Math.toRadians(20) + 0.75*(Math.toRadians(30) + Math.abs(declinationAngle-Math.PI/2))*factor*factor);
+                rotateAngles[j] = lastSign*(Math.toRadians(20) + 0.75*(Math.toRadians(30) + Math.abs(declinationAngle-Math.PI/2))*factor*factor);
+                // Heavily bias it to alternate the directions of rotation. Not specified in the paper, but it seems to make the trees look better.
+                lastSign *= (treeCreationParams.treeRandom.nextDouble() > 0.95) ? 1 : -1;
+                // Could just do:
+                //  lastSign *= -1;
             }
             nextZUnits[j] = treeCreationParams.zUnitOrigin.rotateAbout(xUnit.rotateUnitVector(zUnit, splitAngles[j]), rotateAngles[j]);
 //                // FIXME Is this correct?
@@ -502,7 +487,7 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
             StemVec3d nextOrigin = computeNextOrigin(nextPlane1Units[j], origin, zUnit, nextZUnits[j], branchCreationParams.lengthFraction, prevRadiusZ, radiusZ);
             StemVec3d nextXUnit = treeCreationParams.zUnitOrigin.crossProduct(nextZUnits[j]).normalize();
             if (nextXUnit == StemVec3d.ZERO) { // zUnit and zUnitOrigin are parallel
-                nextXUnit = xUnit.rotateUnitVector(treeCreationParams.zUnitOrigin, rotateAngles[j]);
+                nextXUnit = treeCreationParams.zUnitOrigin.rotateUnitVector(xUnit, rotateAngles[j]);
             }
 
             // FIXME Proper joining between branches.
@@ -534,7 +519,7 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
         double normalDot = nextPlane1Normal.dotProduct(nextZUnit); // cos(theta)
         StemVec3d planeVec = nextPlane1Normal.scale(normalDot).subtract(nextZUnit).normalize(); // n_nextplane*cos(theta)-n_nextcone
         double coneSlope = lengthFraction/(nextRadius-currRadius);
-        double planeMaxSlope = Math.tan(Math.acos(normalDot));
+        double planeMaxSlope = Math.tan(Helpers.safeACos(normalDot));
         double rMin = nextRadius*coneSlope/(coneSlope-planeMaxSlope);
         double rMax = nextRadius*coneSlope/(coneSlope+planeMaxSlope);
         double deltaR = rMax-rMin;
@@ -542,7 +527,11 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
         double planeShift = Math.sqrt(deltaR*deltaR+deltaH*deltaH);
 
         // P_origin + length*n_nextcone + shift*n_maxSlope
-        return currOrigin.add(currZUnit.scale(lengthFraction)).add(planeVec.scale(planeShift));
+        StemVec3d temp = currOrigin.add(currZUnit.scale(lengthFraction)).add(planeVec.scale(planeShift));
+        if (temp.hasNaN()) {
+            throw new InvalidValueException("computeNextOrigin created new origin with NaNs.");
+        }
+        return temp;
     }
 
     protected static double computeNextRadiusZ(double stemRadius, double taper, double positionFraction) {
@@ -566,6 +555,12 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
         }
     }
 
+    /**
+     * Returns a random number in the range [-variation, variation) (verify?).
+     * @param random
+     * @param variation
+     * @return
+     */
     protected static double randDoubleVariation(Random random, double variation) {
         // Is the variation supposed to be any value in the range [-variation, variation], or is it just supposed to be
         //  +/- variation (random sign, fixed magnitude)?
@@ -591,12 +586,15 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
     private static class TreeCreationParams {
         private final ArrayList<GenerationFeature> features;
         private final Random treeRandom;
-        private final StemVec3d zUnitOrigin;
+        private final StemVec3d xUnitOrigin, yUnitOrigin, zUnitOrigin;
         private final double lengthBase;
 
-        private TreeCreationParams(ArrayList<GenerationFeature> features, Random treeRandom, StemVec3d zUnitOrigin, double lengthBase) {
+        private TreeCreationParams(ArrayList<GenerationFeature> features, Random treeRandom,
+                                   StemVec3d xUnitOrigin, StemVec3d yUnitOrigin, StemVec3d zUnitOrigin, double lengthBase) {
             this.features = features;
             this.treeRandom = treeRandom;
+            this.xUnitOrigin = xUnitOrigin;
+            this.yUnitOrigin = yUnitOrigin;
             this.zUnitOrigin = zUnitOrigin;
             this.lengthBase = lengthBase;
         }

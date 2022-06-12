@@ -32,6 +32,9 @@ public class DoubleTruncatedCone implements GenerationFeature {
         if (length < 0) {
             throw new InvalidValueException("DoubleTruncatedCone received negative length.");
         }
+        if (Helpers.hasNaN(origin)) {
+            throw new InvalidValueException("DoubleTruncatedCone received origin with NaNs.");
+        }
         // Max angle a plane's unit vector should be from the cone vector.
         this.coneSlope = length/(radius1-radius2);
         double coneAngle = Math.atan2(radius1-radius2, length);

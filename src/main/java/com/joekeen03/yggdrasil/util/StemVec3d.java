@@ -305,4 +305,17 @@ public class StemVec3d {
     public boolean isZero() {
         return (this == StemVec3d.ZERO || this.length() < epsilon);
     }
+
+    public boolean hasNaN() {
+        return (Double.isNaN(x) || Double.isNaN(y) || Double.isNaN(z));
+    }
+
+    public boolean eqaulsWithTolerance(StemVec3d other) {
+        if (other == this) {
+            return true;
+        } else if ((Math.abs(other.x-x) < epsilon) && (Math.abs(other.y-y) < epsilon) && (Math.abs(other.z-z) < epsilon)) {
+            return true;
+        }
+        return false;
+    }
 }

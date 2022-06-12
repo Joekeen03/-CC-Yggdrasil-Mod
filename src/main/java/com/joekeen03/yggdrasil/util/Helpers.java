@@ -126,4 +126,8 @@ public class Helpers {
         Vec3d cross = xUnit.crossProduct(zUnit);
         return zUnit.scale(Math.cos(theta)).add(cross.scale(Math.sin(theta))); // Rotate next z-vector
     }
+
+    public static boolean hasNaN(Vec3d v) {
+        return (Double.isNaN(v.x) || Double.isNaN(v.y) || Double.isNaN(v.z));
+    }
 }

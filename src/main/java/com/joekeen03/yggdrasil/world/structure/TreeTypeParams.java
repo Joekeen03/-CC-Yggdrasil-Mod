@@ -17,7 +17,8 @@ public class TreeTypeParams {
             scale, scaleVariation, zScale, zScaleVariation,
             ratio, ratioPower,
             lobeDepth,
-            flare;
+            flare,
+            attractionUp;
     public final int levels, lobes;
     public final TrunkParams trunkParams;
     public final BranchParams[] branchParams;
@@ -30,6 +31,7 @@ public class TreeTypeParams {
                           double ratio, double ratioPower,
                           int lobes, double lobeDepth,
                           double flare,
+                          double attractionUp,
                           TrunkParams trunkParams,
                           BranchParams[] branchParams) {
         int branchLevels = levels-(LEAF_LEVELS+TRUNK_LEVELS);
@@ -58,8 +60,17 @@ public class TreeTypeParams {
         this.lobes = lobes;
         this.lobeDepth = lobeDepth;
         this.flare = flare;
+        this.attractionUp = attractionUp;
         this.trunkParams = trunkParams;
         this.branchParams = branchParams;
+    }
+
+    public StemParams fetchParams(int level) {
+        if (level == 0) {
+            return trunkParams;
+        } else {
+            return branchParams[level-1];
+        }
     }
 
     public enum TreeShape {
@@ -68,6 +79,7 @@ public class TreeTypeParams {
         Hemispherical(ratio -> 0.2+0.8*Math.sin(Math.PI/2*ratio)),
         Cylindrical(ratio -> 1.0),
         TaperedCylindrical(ratio -> 0.5+0.5*ratio),
+        MegaTree(ratio -> 0.6+0.4*Math.sin(Math.PI/2*ratio)), // Custom shape for my mega trees - might be better to use a pruning envelope.
         Flame(ratio -> {
             throw new NotImplementedException("Flame shape not yet implemented");
         }),
