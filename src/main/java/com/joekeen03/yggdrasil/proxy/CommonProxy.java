@@ -14,6 +14,7 @@ import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
 
 public class CommonProxy {
+    private WorldTypeYggdrasil yggdrasilType;
     public void registerItemRenderer(Item item, int meta, String id)
     {
 
@@ -22,7 +23,11 @@ public class CommonProxy {
 
     public void preInit(FMLPreInitializationEvent event)
     {
-        WorldTypeYggdrasil.create();
+        yggdrasilType = WorldTypeYggdrasil.create();
+    }
+
+    public WorldTypeYggdrasil getYggdrasilType() {
+        return yggdrasilType;
     }
 
     public void init(FMLInitializationEvent event)

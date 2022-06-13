@@ -211,7 +211,7 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
 
     // TODO Implement an nSegsBase, which prevents cloning before a certain point? Or...could just have
     //  baseSplits=segSplits=0, baseLength=0.95, and 0branches=7.
-    private static final TreeTypeParams treeParams = PossibleMegaTreeParams.SlightLevel1Splitting();
+    private static final TreeTypeParams treeParams = PossibleMegaTreeParams.Level2AdditionalTweaks();
 
     protected static IntegerAABBTree createTree(Random treeRandom, int sectorX, int sectorY, int sectorZ) {
         // Generate trunk - recursive level 0
@@ -407,7 +407,7 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
         // FIXME not sure if this is meant to transform a stem based on its own current orientation due to curvature,
         //  or its predecessor's orientation due to curvature?
         if (level > 1){
-            double declination = Math.acos(nextZUnit.z);
+            double declination = Helpers.safeACos(nextZUnit.z);
             double orientation = Helpers.safeACos(nextZUnit.crossProduct(xUnit).z);
             double curveUp = treeParams.attractionUp * declination * Math.cos(orientation) / branch.curveRes;
             nextZUnit = xUnit.rotateUnitVector(nextZUnit, -curveUp);
@@ -445,7 +445,7 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
                                                int level, double radiusZ, double offset, int effectiveSplits,
                                                TreeCreationParams treeCreationParams, BranchCreationParams branchCreationParams) {
         int nBranches = effectiveSplits + 1;
-        double declinationAngle = Math.acos(treeCreationParams.zUnitOrigin.dotProduct(zUnit));
+        double declinationAngle = Helpers.safeACos(treeCreationParams.zUnitOrigin.dotProduct(zUnit));
         double[] splitAngles = new double[nBranches];
         double[] rotateAngles = new double[nBranches];
         StemVec3d[] nextPlane1Units = new StemVec3d[nBranches];

@@ -4,6 +4,7 @@ import com.joekeen03.yggdrasil.ModYggdrasil;
 import com.joekeen03.yggdrasil.util.InvalidValueException;
 import org.apache.commons.lang3.NotImplementedException;
 
+import java.util.Arrays;
 import java.util.function.DoubleUnaryOperator;
 
 public class TreeTypeParams {
@@ -73,6 +74,163 @@ public class TreeTypeParams {
         }
     }
 
+    public TreeTypeParams createBranchVariation(String newName, int branch, BranchParams.BranchVaryDoubleEnum param, double val) {
+        BranchParams[] newBranchParams = Arrays.copyOf(branchParams, branchParams.length);
+        newBranchParams[branch-1] = branchParams[branch-1].createVariation(param, val);
+        return new TreeTypeParams(newName,
+                shape,
+                baseSize,
+                scale, scaleVariation, zScale, zScaleVariation,
+                levels,
+                ratio, ratioPower,
+                lobes, lobeDepth,
+                flare,
+                attractionUp,
+                trunkParams,
+                newBranchParams);
+    }
+
+    public TreeTypeParams createBranchVariation(String newName, int branch, BranchParams.BranchVaryIntEnum param, int val) {
+        BranchParams[] newParams = Arrays.copyOf(branchParams, branchParams.length);
+        newParams[branch-1] = branchParams[branch-1].createVariation(param, val);
+        return new TreeTypeParams(newName,
+                shape,
+                baseSize,
+                scale, scaleVariation, zScale, zScaleVariation,
+                levels,
+                ratio, ratioPower,
+                lobes, lobeDepth,
+                flare,
+                attractionUp,
+                trunkParams,
+                newParams);
+    }
+
+    public TreeTypeParams createTrunkVariation(String newName, TrunkParams.TrunkVaryIntEnum param, int val) {
+        TrunkParams newTrunkParams = trunkParams.createVariation(param, val);
+        return new TreeTypeParams(newName,
+                shape,
+                baseSize,
+                scale, scaleVariation, zScale, zScaleVariation,
+                levels,
+                ratio, ratioPower,
+                lobes, lobeDepth,
+                flare,
+                attractionUp,
+                newTrunkParams,
+                branchParams);
+    }
+
+    public TreeTypeParams createTrunkVariation(String newName, TrunkParams.TrunkVaryDoubleEnum param, double val) {
+        TrunkParams newTrunkParams = trunkParams.createVariation(param, val);
+        return new TreeTypeParams(newName,
+                shape,
+                baseSize,
+                scale, scaleVariation, zScale, zScaleVariation,
+                levels,
+                ratio, ratioPower,
+                lobes, lobeDepth,
+                flare,
+                attractionUp,
+                newTrunkParams,
+                branchParams);
+    }
+
+    public TreeTypeParams createTreeTypeVariation(String newName, TreeTypeVaryDoubleEnum param, double val) {
+        double baseSize = this.baseSize;
+        double scale = this.scale;
+        double scaleVariation = this.scaleVariation;
+        double zScale = this.zScale;
+        double zScaleVariation = this.zScaleVariation;
+        double ratio = this.ratio;
+        double ratioPower = this.ratioPower;
+        double lobeDepth = this.lobeDepth;
+        double flare = this.flare;
+        double attractionUp = this.attractionUp;
+        switch (param) {
+
+            case baseSize:
+                baseSize = val;
+                break;
+            case scale:
+                scale = val;
+                break;
+            case scaleVariation:
+                scaleVariation = val;
+                break;
+            case zScale:
+                zScale = val;
+                break;
+            case zScaleVariation:
+                zScaleVariation=val;
+                break;
+            case ratio:
+                ratio=val;
+                break;
+            case ratioPower:
+                ratioPower=val;
+                break;
+            case lobeDepth:
+                lobeDepth=val;
+                break;
+            case flare:
+                flare=val;
+                break;
+            case attractionUp:
+                attractionUp=val;
+                break;
+        }
+        return new TreeTypeParams(newName,
+                this.shape,
+                baseSize,
+                scale, scaleVariation, zScale, zScaleVariation,
+                this.levels,
+                ratio, ratioPower,
+                this.lobes, lobeDepth,
+                flare,
+                attractionUp,
+                trunkParams,
+                branchParams);
+    }
+
+    public TreeTypeParams createTreeTypeVariation(String newName, TreeTypeVaryIntEnum param, int val) {
+        int levels = this.levels;
+        int lobes = this.lobes;
+        switch (param) {
+            case levels:
+                levels = val;
+                break;
+            case lobes:
+                lobes=val;
+                break;
+        }
+        return new TreeTypeParams(newName,
+                this.shape,
+                this.baseSize,
+                this.scale, this.scaleVariation, this.zScale, this.zScaleVariation,
+                levels,
+                this.ratio, this.ratioPower,
+                lobes, this.lobeDepth,
+                this.flare,
+                this.attractionUp,
+                trunkParams,
+                branchParams);
+    }
+
+    public TreeTypeParams createTreeTypeVariation(String newName, TreeShape newShape) {
+        return new TreeTypeParams(newName,
+                newShape,
+                this.baseSize,
+                this.scale, this.scaleVariation, this.zScale, this.zScaleVariation,
+                this.levels,
+                this.ratio, this.ratioPower,
+                this.lobes, this.lobeDepth,
+                this.flare,
+                this.attractionUp,
+                trunkParams,
+                branchParams);
+    }
+
     public enum TreeShape {
         Conical(ratio -> 0.2+0.8*ratio),
         Spherical(ratio -> 0.2+0.8*Math.sin(Math.PI*ratio)),
@@ -96,5 +254,18 @@ public class TreeTypeParams {
         private TreeShape(DoubleUnaryOperator ratioFunction) {
             getRatio = ratioFunction;
         }
+    }
+
+    public enum TreeTypeVaryDoubleEnum {
+        baseSize,
+        scale, scaleVariation, zScale, zScaleVariation,
+        ratio, ratioPower,
+        lobeDepth,
+        flare,
+        attractionUp;
+    }
+
+    public enum TreeTypeVaryIntEnum {
+        levels, lobes;
     }
 }

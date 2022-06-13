@@ -1,10 +1,13 @@
 buildscript {
     repositories {
         maven { url = 'https://maven.minecraftforge.net/' }
+        maven { url = 'https://repo.spongepowered.org/repository/maven-public/' }
         mavenCentral()
     }
     dependencies {
-        classpath 'net.minecraftforge.gradle:ForgeGradle:3.+'
+        classpath 'net.minecraftforge.gradle:ForgeGradle:5.1.27'
+        classpath 'org.spongepowered:mixingradle:0.7.+'
+        classpath 'com.github.jengelman.gradle.plugins:shadow:4.0.4'
     }
 }
         
@@ -12,6 +15,8 @@ apply plugin: 'net.minecraftforge.gradle'
 // Only edit below this line, the above code adds and enables the necessary things for Forge to be setup.
 apply plugin: 'eclipse'
 apply plugin: 'maven-publish'
+apply plugin: 'org.spongepowered.mixin'
+apply plugin: 'com.github.johnrengelman.shadow'
 
 version = '0.0.1'
 group = 'com.joekeen03.yggdrasil' // http://maven.apache.org/guides/mini/guide-naming-conventions.html
@@ -92,6 +97,25 @@ dependencies {
     // http://www.gradle.org/docs/current/userguide/artifact_dependencies_tutorial.html
     // http://www.gradle.org/docs/current/userguide/dependency_management.html
 
+    shadow('org.spongepowered:mixin:0.8')
+//    compileOnly("org.spongepowered:mixin:0.8-SNAPSHOT") {
+//        exclude module: "launchwrapper"
+//        exclude module: "guava"
+//        exclude module: "gson"
+//        exclude module: "commons-io"
+//    }
+    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+}
+
+shadowJar {
+    dependencies {
+        include('org.spongepowered.mixin')
+    }
+}
+
+mixin {
+    add sourceSets.main, 'mixins.yggdrasil.refmap.json'
+    config 'mixins.yggdrasil.json'
 }
 
 // Example for how to get properties into the manifest for reading by the runtime..

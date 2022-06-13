@@ -29,4 +29,98 @@ public class BranchParams extends StemParams {
     public int getNextEffectiveSplits() {
         return getNextEffectiveSplits(segSplits);
     }
+
+    public BranchParams createVariation(BranchVaryDoubleEnum param, double val) {
+
+        double downAngle = this.downAngle;
+        double downAngleVariation = this.downAngleVariation;
+        double rotate = this.rotate;
+        double rotateVariation = this.rotateVariation;
+        double length = this.length;
+        double lengthVariation = this.lengthVariation;
+        double taper = this.taper;
+        double segSplits = this.segSplits;
+        double splitAngle = this.splitAngle;
+        double splitAngleVariation = this.splitAngleVariation;
+        double curve = this.curve;
+        double curveBack = this.curveBack;
+        double curveVariation = this.curveVariation;
+        switch (param) {
+            case length:
+                length = val;
+                break;
+            case lengthVariation:
+                lengthVariation = val;
+                break;
+            case taper:
+                taper = val;
+                break;
+            case segSplits:
+                segSplits = val;
+                break;
+            case splitAngle:
+                splitAngle = val;
+                break;
+            case splitAngleVariation:
+                splitAngleVariation = val;
+                break;
+            case curve:
+                curve = val;
+                break;
+            case curveBack:
+                curveBack=val;
+                break;
+            case curveVariation:
+                curveVariation=val;
+                break;
+            case downAngle:
+                downAngle = val;
+                break;
+            case downAngleVariation:
+                downAngleVariation=val;
+                break;
+            case rotate:
+                rotate=val;
+                break;
+            case rotateVariation:
+                rotateVariation=val;
+                break;
+        }
+        return new BranchParams(downAngle, downAngleVariation,
+                rotate, rotateVariation, this.branches,
+                length, lengthVariation, taper,
+                segSplits, splitAngle, splitAngleVariation,
+                this.curveRes, curve, curveBack, curveVariation);
+    }
+
+    public BranchParams createVariation(BranchVaryIntEnum param, int val) {
+
+        int branches = this.branches;
+        int curveRes = this.curveRes;
+        switch (param) {
+            case curveRes:
+                curveRes = val;
+                break;
+            case branches:
+                branches = val;
+                break;
+        }
+        return new BranchParams(this.downAngle, this.downAngleVariation,
+                this.rotate, this.rotateVariation, branches,
+                this.length, this.lengthVariation, this.taper,
+                this.segSplits, this.splitAngle, this.splitAngleVariation,
+                curveRes, this.curve, this.curveBack, this.curveVariation);
+    }
+
+    public enum BranchVaryIntEnum {
+        curveRes, branches;
+    }
+
+    public enum BranchVaryDoubleEnum {
+        length, lengthVariation, taper,
+        segSplits, splitAngle, splitAngleVariation,
+        curve, curveBack, curveVariation,
+        downAngle, downAngleVariation,
+        rotate, rotateVariation;
+    }
 }
