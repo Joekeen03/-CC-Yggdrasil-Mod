@@ -9,7 +9,8 @@ import net.minecraft.block.BlockPlanks;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Blocks;
 import net.minecraft.util.math.Vec3d;
-import net.minecraft.util.math.Vec3i;
+
+import javax.annotation.Nonnull;
 
 public class TaperedCylinder implements GenerationFeature {
     public final double radius1, radius2, length, cubeDistance, coneSlope;
@@ -46,7 +47,7 @@ public class TaperedCylinder implements GenerationFeature {
     }
 
     @Override
-    public IntegerMinimumAABB getMinimumBoundingBox() {
+    public @Nonnull IntegerMinimumAABB getMinimumBoundingBox() {
         // Compute theta and phi so I can use the basic cylinder code.
         double theta = Math.PI/2-Math.atan2(unit.y, Math.sqrt(unit.z*unit.z+unit.x*unit.x));
         double phi = Math.atan2(unit.x, unit.z);

@@ -15,6 +15,9 @@ import javax.annotation.Nullable;
 public class StemVec3d {
     // FIXME should probably just copy Vec3d's code, not inherit it - avoid accidental confusion between them.
     public static final StemVec3d ZERO = new StemVec3d(0.0D, 0.0D, 0.0D);
+    public static final StemVec3d XUnit = new StemVec3d(1.0D, 0.0D, 0.0D);
+    public static final StemVec3d YUnit = new StemVec3d(0.0D, 1.0D, 0.0D);
+    public static final StemVec3d ZUnit = new StemVec3d(0.0D, 0.0D, 1.0D);
     public static final double epsilon = 1.0E-4D;
     public final double x;
     public final double y;

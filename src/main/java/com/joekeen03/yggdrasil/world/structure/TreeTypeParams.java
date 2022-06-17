@@ -23,6 +23,7 @@ public class TreeTypeParams {
     public final int levels, lobes;
     public final TrunkParams trunkParams;
     public final BranchParams[] branchParams;
+    public final LeafParams leafParams;
 
     public TreeTypeParams(String name,
                           TreeShape shape,
@@ -34,7 +35,8 @@ public class TreeTypeParams {
                           double flare,
                           double attractionUp,
                           TrunkParams trunkParams,
-                          BranchParams[] branchParams) {
+                          BranchParams[] branchParams,
+                          LeafParams leafParams) {
         int branchLevels = levels-(LEAF_LEVELS+TRUNK_LEVELS);
         if (branchParams.length < branchLevels) {
             throw new InvalidValueException("BranchParams array must be at least as long as levels-2.");
@@ -64,6 +66,7 @@ public class TreeTypeParams {
         this.attractionUp = attractionUp;
         this.trunkParams = trunkParams;
         this.branchParams = branchParams;
+        this.leafParams = leafParams;
     }
 
     public StemParams fetchParams(int level) {
@@ -87,7 +90,8 @@ public class TreeTypeParams {
                 flare,
                 attractionUp,
                 trunkParams,
-                newBranchParams);
+                newBranchParams,
+                leafParams);
     }
 
     public TreeTypeParams createBranchVariation(String newName, int branch, BranchParams.BranchVaryIntEnum param, int val) {
@@ -103,7 +107,8 @@ public class TreeTypeParams {
                 flare,
                 attractionUp,
                 trunkParams,
-                newParams);
+                newParams,
+                leafParams);
     }
 
     public TreeTypeParams createTrunkVariation(String newName, TrunkParams.TrunkVaryIntEnum param, int val) {
@@ -118,7 +123,8 @@ public class TreeTypeParams {
                 flare,
                 attractionUp,
                 newTrunkParams,
-                branchParams);
+                branchParams,
+                leafParams);
     }
 
     public TreeTypeParams createTrunkVariation(String newName, TrunkParams.TrunkVaryDoubleEnum param, double val) {
@@ -133,7 +139,8 @@ public class TreeTypeParams {
                 flare,
                 attractionUp,
                 newTrunkParams,
-                branchParams);
+                branchParams,
+                leafParams);
     }
 
     public TreeTypeParams createTreeTypeVariation(String newName, TreeTypeVaryDoubleEnum param, double val) {
@@ -190,7 +197,8 @@ public class TreeTypeParams {
                 flare,
                 attractionUp,
                 trunkParams,
-                branchParams);
+                branchParams,
+                leafParams);
     }
 
     public TreeTypeParams createTreeTypeVariation(String newName, TreeTypeVaryIntEnum param, int val) {
@@ -214,7 +222,8 @@ public class TreeTypeParams {
                 this.flare,
                 this.attractionUp,
                 trunkParams,
-                branchParams);
+                branchParams,
+                leafParams);
     }
 
     public TreeTypeParams createTreeTypeVariation(String newName, TreeShape newShape) {
@@ -228,7 +237,8 @@ public class TreeTypeParams {
                 this.flare,
                 this.attractionUp,
                 trunkParams,
-                branchParams);
+                branchParams,
+                leafParams);
     }
 
     public enum TreeShape {

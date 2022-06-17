@@ -34,6 +34,9 @@ public class PossibleMegaTreeParams {
                 10, Math.toRadians(7), Math.toRadians(0), Math.toRadians(3));
 
         BranchParams[] branchParams = new BranchParams[] {branch_1, branch_2, branch_2};
+
+        LeafParams leafParams = new LeafParams(50, 0, 0.17, 1);
+
         return new TreeTypeParams(
                 "Testing",
                 TreeTypeParams.TreeShape.MegaTree,
@@ -45,7 +48,8 @@ public class PossibleMegaTreeParams {
                 TEMP,
                 0.5,
                 trunkParams,
-                branchParams);
+                branchParams,
+                leafParams);
         // So-so. Definitely looked cluttered, might be due to excess branches, might be from the angle of the branches.
     }
 
@@ -72,13 +76,16 @@ public class PossibleMegaTreeParams {
                 10, Math.toRadians(10), Math.toRadians(0), Math.toRadians(3));
 
         BranchParams branch_3 = new BranchParams(
-                Math.toRadians(50), Math.toRadians(20),
-                Math.toRadians(110), Math.toRadians(60), 10,
+                Math.toRadians(30), Math.toRadians(5),
+                Math.toRadians(70), Math.toRadians(20), 4,
                 0.9, 0.1, 1.0,
-                0.1, Math.toRadians(40), Math.toRadians(10),
-                10, Math.toRadians(7), Math.toRadians(0), Math.toRadians(3));
+                0.0, Math.toRadians(40), Math.toRadians(10),
+                4, Math.toRadians(5), Math.toRadians(0), Math.toRadians(1));
 
         BranchParams[] branchParams = new BranchParams[] {branch_1, branch_2, branch_3};
+
+        LeafParams leafParams = new LeafParams(50, 0, 0.17, 1);
+
         return new TreeTypeParams(
                 "Testing Modest Level 2 Branching",
                 TreeTypeParams.TreeShape.MegaTree,
@@ -90,7 +97,8 @@ public class PossibleMegaTreeParams {
                 TEMP,
                 0.5,
                 trunkParams,
-                branchParams);
+                branchParams,
+                leafParams);
         // I think the density is pretty close to where I want it, maybe just a bit lower.
         // Possible up the nCurveVary, to make the branches seem more gnarled? Seems really smooth right now.
         // Need to start thinking about the leaves...
@@ -151,15 +159,68 @@ public class PossibleMegaTreeParams {
                 .createBranchVariation("Testing Moderate Level 2 Down Angle", 2,
                         BranchParams.BranchVaryDoubleEnum.downAngle, Math.toRadians(35))
                 .createBranchVariation("Testing Moderate Level 2 Split Angle", 2,
-                        BranchParams.BranchVaryDoubleEnum.splitAngle, Math.toRadians(55));
+                        BranchParams.BranchVaryDoubleEnum.splitAngle, Math.toRadians(55))
+                .createTreeTypeVariation("Testing Lower Up-Attraction",
+                        TreeTypeParams.TreeTypeVaryDoubleEnum.attractionUp, 0.2); // FIXME Ambivalent about this - could work w/ or w/o this.
         // I think we have a winner - seems to fill the space pretty well.
         //  Does seem a bit chaotic, and could maybe use a slightly higher 2CurveVary, but I've spent long enough on this for now.
     }
 
-    public static TreeTypeParams Level3Initial() {
+    public static TreeTypeParams Level3Initial1() {
         return Level2AdditionalTweaks()
-                .createTreeTypeVariation("Testing Level 3", levels, 4);
-        // I think we have a winner - seems to fill the space pretty well.
-        //  Does seem a bit chaotic, and could maybe use a slightly higher 2CurveVary, but I've spent long enough on this for now.
+//                .createBranchVariation("Testing Moderate Level 3 Down Angle", 3,
+//                        BranchParams.BranchVaryDoubleEnum.downAngle, Math.toRadians(35))
+//                .createBranchVariation("Testing Moderate Level 3 Curve", 3,
+//                        BranchParams.BranchVaryDoubleEnum.curve, Math.toRadians(-30))
+                .createBranchVariation("Testing Negative Level 3 Rotate Angle", 3,
+                        BranchParams.BranchVaryDoubleEnum.rotate, Math.toRadians(-50))
+                .createBranchVariation("Testing Negative Level 3 Rotate Angle", 3,
+                        BranchParams.BranchVaryDoubleEnum.rotateVariation, Math.toRadians(50))
+                .createTreeTypeVariation("Testing Level 3", levels, 3);
+        // So, seems to fill the space pretty well, but a lot of the branches dip down below the trunk's bottom, and I'm not sure
+        //  how to remedy that - rotate=-50 and rotateV=50? downAngle=15? curve=-30? Set level 1 branches to start at
+        //  a higher angle (smaller 1downAngle & 1downAngleV)?
     }
+
+    public static TreeTypeParams Level3Initial2() {
+        return Level2AdditionalTweaks()
+//                .createBranchVariation("Testing Moderate Level 3 Down Angle", 3,
+//                        BranchParams.BranchVaryDoubleEnum.downAngle, Math.toRadians(35))
+//                .createBranchVariation("Testing Moderate Level 3 Curve", 3,
+//                        BranchParams.BranchVaryDoubleEnum.curve, Math.toRadians(-30))
+//                .createBranchVariation("Testing Negative Level 3 Rotate Angle", 3,
+//                        BranchParams.BranchVaryDoubleEnum.rotate, Math.toRadians(-50))
+//                .createBranchVariation("Testing Negative Level 3 Rotate Angle", 3,
+//                        BranchParams.BranchVaryDoubleEnum.rotateVariation, Math.toRadians(50))
+                .createTreeTypeVariation("Testing Higher Up-Attraction",
+                        TreeTypeParams.TreeTypeVaryDoubleEnum.attractionUp, 0.5)
+//                .createBranchVariation("Testing Smaller Level 1 DownAngle", 1,
+//                        BranchParams.BranchVaryDoubleEnum.downAngle, Math.toRadians(40))
+//                .createBranchVariation("Testing Smaller Level 1 DownAngle Variation", 1,
+//                        BranchParams.BranchVaryDoubleEnum.downAngleVariation, Math.toRadians(-30))
+                .createTreeTypeVariation("Testing Level 3", levels, 4);
+        // So, seems to fill the space pretty well, but a lot of the branches dip down below the trunk's bottom, and I'm not sure
+        //  how to remedy that - rotate=-50 and rotateV=50? downAngle=15? curve=-30? Set level 1 branches to start at
+        //  a higher angle (smaller 1downAngle & 1downAngleV)?
+        //  So, I think I see a few possible solutions:
+        //      -Level 1 branches start at higher angles - seems to make the top very crowded - maybe combine with a lower branch count?
+        //      -"Chop off" the lowest branch - set the down angles, branch count and bare area such that it skips that first problematic one
+        //          (what if other branches prove problematic?). Seems identical to the first solution?
+        //      -Increase the attraction up, so that the level 2 & 3 branches seem to start at higher angles.
+        //      -Set the Level 3 branches to use a coplanar distribution - seemed to leave bare regions.
+        //      -Use the HemiSpherical TreeShape (instead of my custom one), and set the level 1 branches to start at higher
+        //          branch angles (downAngle = 40, downAngleV = -30)
+        // Gonna use the higher attractionUp for now.
+    }
+
+    public static TreeTypeParams FullScaleTest() {
+        return Level3Initial2()
+//                .createTrunkVariation("Testing Full Scale",
+//                        TrunkParams.TrunkVaryDoubleEnum.length, 1500)
+//                .createTrunkVariation("Testing Full Scale",
+//                        TrunkParams.TrunkVaryDoubleEnum.lengthVariation, 400)
+                ;
+    }
+
+    public static final TreeTypeParams active = FullScaleTest();
 }

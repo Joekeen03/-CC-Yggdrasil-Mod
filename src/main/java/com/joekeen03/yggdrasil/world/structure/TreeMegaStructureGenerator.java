@@ -7,30 +7,23 @@ import io.github.opencubicchunks.cubicchunks.api.world.ICube;
 import io.github.opencubicchunks.cubicchunks.api.worldgen.CubePrimer;
 import io.github.opencubicchunks.cubicchunks.api.worldgen.structure.ICubicStructureGenerator;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
-import net.minecraft.block.BlockLog;
-import net.minecraft.block.BlockOldLog;
-import net.minecraft.block.BlockPlanks;
-import net.minecraft.block.state.IBlockState;
-import net.minecraft.init.Blocks;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import org.apache.commons.lang3.NotImplementedException;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Random;
 
 public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
     private static final int TREE_RATE = 5; // On average, 1 out of this many sectors will spawn a tree.
     private static final long KEY_MASK = (1<<(22-1))-1;
-    private static final int treeWidth=1024;
-    private static final int treeHeight=2048;
+    private static final int treeWidth=4096;
+    private static final int treeHeight=4096;
     private static final int xzSectorSize = treeWidth/2;
     private static final int ySectorSize = treeHeight/2;
-    private static final IBlockState OAK_LOG = Blocks.LOG.getDefaultState().withProperty(BlockOldLog.VARIANT, BlockPlanks.EnumType.OAK);
-    private static final IBlockState OAK_BARK = Blocks.LOG.getDefaultState().withProperty(BlockOldLog.VARIANT, BlockPlanks.EnumType.OAK)
-            .withProperty(BlockLog.LOG_AXIS, BlockLog.EnumAxis.NONE);
     private static final Long2ObjectOpenHashMap<IntegerAABBTree> treeCache = new Long2ObjectOpenHashMap<>(10);
-    private static final boolean TREE_DEBUG = true;
+    public static final boolean TREE_DEBUG = true;
 
     @Override
     public void generate(World world, CubePrimer cube, CubePos cubePos) {
@@ -211,7 +204,7 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
 
     // TODO Implement an nSegsBase, which prevents cloning before a certain point? Or...could just have
     //  baseSplits=segSplits=0, baseLength=0.95, and 0branches=7.
-    private static final TreeTypeParams treeParams = PossibleMegaTreeParams.Level2AdditionalTweaks();
+    private static final TreeTypeParams treeParams = PossibleMegaTreeParams.active;
 
     protected static IntegerAABBTree createTree(Random treeRandom, int sectorX, int sectorY, int sectorZ) {
         // Generate trunk - recursive level 0
@@ -224,12 +217,16 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
 
         // Trunk's initial segment is aligned with the absolute z-axis. Maybe play with trunks that don't start vertical?
         StemVec3d zUnitOrigin = new StemVec3d(0, 0, 1);
+
+        long seed = treeRandom.nextLong();
+        Random oldRandom = new Random(seed);
+
         // Angle the trunk's x-axis is, relative to the absolute axes. Needed, b/c rotations are generally about the x-axis
-        double xAngle = Helpers.randDoubleRange(treeRandom, -Math.PI, Math.PI);
+        double xAngle = Helpers.randDoubleRange(oldRandom, -Math.PI, Math.PI);
         StemVec3d xUnit = new StemVec3d(Math.cos(xAngle), Math.sin(xAngle), 0);
 
-        double treeScale = treeParams.scale + randDoubleVariation(treeRandom, treeParams.scaleVariation);
-        double length = (treeParams.trunkParams.length + randDoubleVariation(treeRandom, treeParams.trunkParams.lengthVariation)) * treeScale;
+        double treeScale = treeParams.scale + randDoubleVariation(oldRandom, treeParams.scaleVariation);
+        double length = (treeParams.trunkParams.length + randDoubleVariation(oldRandom, treeParams.trunkParams.lengthVariation)) * treeScale;
         double stemRadius = length * treeParams.trunkParams.scale * treeParams.ratio;
         // Paper defines it as scale*baseSize, but that would give a fractional length - which doesn't make sense for
         //  how it's used
@@ -259,20 +256,37 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
         //      it should be (?), then stretching a mess from each branch's cross-section to the base; i.e., each branch
         //      is just my truncated cones idea, and they just join in the middle. Just do that, or would I want some
         //      way to handle this with my curved cylinders?
-        treeParams.trunkParams.resetSplitError(treeRandom);
+        treeParams.trunkParams.resetSplitError(oldRandom);
         for (BranchParams branchParam : treeParams.branchParams) {
-            branchParam.resetSplitError(treeRandom);
+            branchParam.resetSplitError(oldRandom);
         }
 
         int nChildren = 0;
         if (treeParams.levels > 0) {
             nChildren = ((BranchParams) treeParams.fetchParams(1)).branches;
         }
+
         createBranch(trunkOrigin, zUnitOrigin, xUnit,
                 length, stemRadius, nChildren,
-                0, new TreeCreationParams(generationFeatures, treeRandom, xUnit, zUnitOrigin.crossProduct(xUnit).normalize(), zUnitOrigin, lengthBase));
+                0, new TreeCreationParams(generationFeatures, oldRandom, xUnit,
+                        zUnitOrigin.crossProduct(xUnit).normalize(), zUnitOrigin, lengthBase));
+        IntegerAABBTree oldTree = new IntegerAABBTree(generationFeatures.toArray(new GenerationFeature[0]));
+        TreeModel model = new TreeModel(new Random(seed), trunkOrigin, zUnitOrigin, treeParams);
+        ArrayList<GenerationFeature> newFeatures = createGenerationFeatures(model);
+        IntegerAABBTree newTree = new IntegerAABBTree(newFeatures.toArray(new GenerationFeature[0]));
+        // Compare the two trees:
+        if (Arrays.equals(generationFeatures.toArray(), newFeatures.toArray())) {
+            ModYggdrasil.info("Identical trees created for sector "+sectorX+","+sectorY+","+sectorZ+", with origin at "+trunkOrigin.toMCVector());
+        } else {
+            for (int i = 0; i < generationFeatures.size(); i++) {
+                if (!generationFeatures.get(i).equals(newFeatures.get(i))) {
+                    int x = 0;
+                }
+            }
+            ModYggdrasil.info("Trees for sector "+sectorX+","+sectorY+","+sectorZ+", with origin at "+trunkOrigin.toMCVector()+", were not identical.");
+        }
         ModYggdrasil.info("Tree for sector "+sectorX+","+sectorY+","+sectorZ+" created, with origin at "+trunkOrigin.toMCVector());
-        return new IntegerAABBTree(generationFeatures.toArray(new GenerationFeature[0]));
+        return newTree;
     }
 
     public static void createBranch(StemVec3d origin, StemVec3d zUnit, StemVec3d xUnit,
@@ -290,6 +304,102 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
                 baseRadius, 0, firstChildOffset, 0,
                 0, level,
                 treeCreationParams, new BranchCreationParams(baseRadius, length/branch.curveRes, length, branchDistance));
+    }
+
+    private static ArrayList<GenerationFeature> createGenerationFeatures(TreeModel model) {
+        ArrayList<GenerationFeature> generationFeatures = new ArrayList<>(3000);
+        // FIXME Verify that the first segment is a TreeSegmentGenerated?
+        processBranch(model.trunk, StemVec3d.ZERO, generationFeatures);
+        return generationFeatures;
+    }
+
+    private static void processBranch(TreeBranch branch, StemVec3d adjustment, ArrayList<GenerationFeature> generationFeatures) {
+        processSegment( branch.firstSegment, new StemVec3d[] {branch.firstSegment.zUnit},
+                adjustment, generationFeatures);
+    }
+
+    private static void processSegment(TreeSegment segment, StemVec3d[] plane1Units, StemVec3d adjustment,
+                                       ArrayList<GenerationFeature> generationFeatures) {
+        if (segment instanceof TreeSegmentGenerated) {
+            TreeSegmentGenerated generatedSegment = (TreeSegmentGenerated) segment;
+            for (TreeBranch child : generatedSegment.children) {
+                processBranch(child, adjustment, generationFeatures);
+            }
+            StemVec3d[] nextPlane1Units = new StemVec3d[generatedSegment.nextSegments.length];
+            for (int i = 0; i < generatedSegment.nextSegments.length; i++) {
+                TreeSegment nextSegment = generatedSegment.nextSegments[i];
+                nextPlane1Units[i] = generatedSegment.zUnit.add(nextSegment.zUnit).normalize();
+//                StemVec3d nextAdjustment = computeNextAdjustment(nextPlane1Units[i], adjustment,
+//                        generatedSegment.zUnit, nextSegment.zUnit, generatedSegment.length,
+//                        generatedSegment.baseRadius, generatedSegment.endRadius);
+//                processSegment(nextSegment, new StemVec3d[] {nextPlane1Units[i]},
+//                        nextAdjustment, generationFeatures);
+            }
+            if (nextPlane1Units.length == 0) { // End of the branch
+                nextPlane1Units = new StemVec3d[] {generatedSegment.zUnit};
+            }
+            if (plane1Units.length == 1 && nextPlane1Units.length == 1) {
+
+                DoubleTruncatedCone feature = new DoubleTruncatedCone(
+                        (generatedSegment.origin.add(adjustment)).toMCVector(), generatedSegment.zUnit.toMCVector(),
+                        plane1Units[0].toMCVector(), nextPlane1Units[0].scale(-1).toMCVector(),
+                        generatedSegment.baseRadius, generatedSegment.endRadius, generatedSegment.length);
+                generationFeatures.add(feature);
+            } else {
+                MNTruncatedCone feature = new MNTruncatedCone(
+                        (generatedSegment.origin.add(adjustment)).toMCVector(), generatedSegment.zUnit.toMCVector(),
+                        stemToMC(plane1Units), stemToMCAndFlip(nextPlane1Units),
+                        generatedSegment.baseRadius, generatedSegment.endRadius, generatedSegment.length);
+                generationFeatures.add(feature);
+            }
+            for (int i = 0; i < generatedSegment.nextSegments.length; i++) {
+                TreeSegment nextSegment = generatedSegment.nextSegments[i];
+//                nextPlane1Units[i] = generatedSegment.zUnit.add(nextSegment.zUnit).normalize();
+                StemVec3d nextAdjustment = computeNextAdjustment(nextPlane1Units[i], adjustment,
+                        generatedSegment.zUnit, nextSegment.zUnit, generatedSegment.length,
+                        generatedSegment.baseRadius, generatedSegment.endRadius);
+                processSegment(nextSegment, new StemVec3d[] {nextPlane1Units[i]},
+                        nextAdjustment, generationFeatures);
+            }
+        } else if (segment instanceof TreeSegmentNode) {
+//            LeafBranch feature = new LeafBranch((TreeSegmentNode) segment);
+//            generationFeatures.add(feature);
+        }
+    }
+
+    /**
+     * Computes the next plane's origin. The nextPlaneXUnit should be perpendicular to the line of max slope along the
+     * plane, relative to the
+     * @param nextPlane1Normal
+     * @param currAdjustment
+     * @param currZUnit
+     * @param nextZUnit
+     * @param lengthFraction
+     * @param currRadius
+     * @param nextRadius
+     * @return
+     */
+    protected static StemVec3d computeNextAdjustment(StemVec3d nextPlane1Normal, StemVec3d currAdjustment,
+                                                 StemVec3d currZUnit, StemVec3d nextZUnit,
+                                                 double lengthFraction, double currRadius, double nextRadius) {
+        // Shift the next conical segment's origin down the line of max slope on the plane, to ensure its elliptical
+        //  end lines up with the current segment's elliptical end.
+        double normalDot = nextPlane1Normal.dotProduct(nextZUnit); // cos(theta)
+        StemVec3d adjustVector = nextPlane1Normal.scale(normalDot).subtract(nextZUnit).normalize(); // n_nextplane*cos(theta)-n_nextcone
+        double coneSlope = lengthFraction/(nextRadius-currRadius);
+        double planeMaxSlope = Math.tan(Helpers.safeACos(normalDot));
+        double rMin = nextRadius*coneSlope/(coneSlope-planeMaxSlope);
+        double rMax = nextRadius*coneSlope/(coneSlope+planeMaxSlope);
+        double deltaR = rMax-rMin;
+        double deltaH = planeMaxSlope*deltaR;
+        double planeShift = Math.sqrt(deltaR*deltaR+deltaH*deltaH);
+
+        // P_origin + length*n_nextcone + shift*n_maxSlope
+        StemVec3d nextAdjustment = currAdjustment.add(adjustVector.scale(planeShift));
+        if (nextAdjustment.hasNaN()) {
+            throw new InvalidValueException("computeNextOrigin created new origin with NaNs.");
+        }
+        return nextAdjustment;
     }
 
     public static void createSegment(StemVec3d origin, StemVec3d zUnit, StemVec3d xUnit, StemVec3d[] plane1Units,
@@ -348,7 +458,7 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
                         childXUnit = xUnit;
                     }
                 } else {
-                    double angle = nextBranch.rotate+randDoubleVariation(treeCreationParams.treeRandom, nextBranch.rotateVariation);
+                    double angle = Math.PI+nextBranch.rotate+randDoubleVariation(treeCreationParams.treeRandom, nextBranch.rotateVariation);
                     if (lastChildAngle > 0) { // Alternate sides
                         angle *= -1;
                     }
@@ -380,18 +490,40 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
 
         int segSplitsEffective = currBranch.getNextEffectiveSplits(i);
 
-        if (segSplitsEffective == 0 || i == (currBranch.curveRes-1)) { // No branching
-            createSimpleSegment(origin, zUnit, xUnit, plane1Units,
-                    prevRadiusZ, i, remainingCorrection, lastChildAngle,
-                    level, radiusZ, offset,
-                    treeCreationParams, branchCreationParams
-            );
-        } else { // Branch
-            createBranchingSegment(origin, zUnit, xUnit, plane1Units,
-                    prevRadiusZ, i, remainingCorrection, lastChildAngle,
-                    level, radiusZ, offset, segSplitsEffective,
-                    treeCreationParams, branchCreationParams
-            );
+        if (i < (currBranch.curveRes-1)) { // Not the last segment
+            if (segSplitsEffective == 0) { // No branching
+                createSimpleSegment(origin, zUnit, xUnit, plane1Units,
+                        prevRadiusZ, i, remainingCorrection, lastChildAngle,
+                        level, radiusZ, offset,
+                        treeCreationParams, branchCreationParams
+                );
+            } else { // Branching
+                createBranchingSegment(origin, zUnit, xUnit, plane1Units,
+                        prevRadiusZ, i, remainingCorrection, lastChildAngle,
+                        level, radiusZ, offset, segSplitsEffective,
+                        treeCreationParams, branchCreationParams
+                );
+            }
+        } else {
+            createBasicSegment(origin, zUnit, plane1Units, zUnit, prevRadiusZ, radiusZ, treeCreationParams, branchCreationParams);
+        }
+    }
+
+    private static void createBasicSegment(StemVec3d origin, StemVec3d zUnit, StemVec3d[] plane1Units,
+                                           StemVec3d nextPlane1Unit, double prevRadiusZ, double radiusZ,
+                                           TreeCreationParams treeCreationParams, BranchCreationParams branchCreationParams) {
+        if (plane1Units.length == 1) {
+            DoubleTruncatedCone segment = new DoubleTruncatedCone(
+                    origin.toMCVector(), zUnit.toMCVector(),
+                    plane1Units[0].toMCVector(), nextPlane1Unit.scale(-1).toMCVector(),
+                    prevRadiusZ, radiusZ, branchCreationParams.lengthFraction);
+            treeCreationParams.features.add(segment);
+        } else {
+            MNTruncatedCone segment = new MNTruncatedCone(
+                    origin.toMCVector(), zUnit.toMCVector(),
+                    stemToMC(plane1Units), new Vec3d[] {nextPlane1Unit.scale(-1).toMCVector()},
+                    prevRadiusZ, radiusZ, branchCreationParams.lengthFraction);
+            treeCreationParams.features.add(segment);
         }
     }
 
@@ -418,23 +550,9 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
             nextPlane1Unit = zUnit;
         }
 
-        if (plane1Units.length == 1) {
-            DoubleTruncatedCone segment = new DoubleTruncatedCone(
-                    origin.toMCVector(), zUnit.toMCVector(),
-                    plane1Units[0].toMCVector(), nextPlane1Unit.scale(-1).toMCVector(),
-                    prevRadiusZ, radiusZ, branchCreationParams.lengthFraction);
-            treeCreationParams.features.add(segment);
-        } else {
-            MNTruncatedCone segment = new MNTruncatedCone(
-                    origin.toMCVector(), zUnit.toMCVector(),
-                    stemToMC(plane1Units), new Vec3d[] {nextPlane1Unit.scale(-1).toMCVector()},
-                    prevRadiusZ, radiusZ, branchCreationParams.lengthFraction);
-            treeCreationParams.features.add(segment);
-        }
+        createBasicSegment(origin, zUnit, plane1Units, nextPlane1Unit, prevRadiusZ, radiusZ, treeCreationParams, branchCreationParams);
 
         StemVec3d nextOrigin = computeNextOrigin(nextPlane1Unit, origin, zUnit, nextZUnit, branchCreationParams.lengthFraction, prevRadiusZ, radiusZ);
-
-        // FIXME
         createSegment(nextOrigin, nextZUnit, xUnit, new StemVec3d[] {nextPlane1Unit},
                 radiusZ, i+1, offset, lastChildAngle, remainingCorrection-correction,
                  level, treeCreationParams, branchCreationParams);
@@ -534,7 +652,7 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
         return temp;
     }
 
-    protected static double computeNextRadiusZ(double stemRadius, double taper, double positionFraction) {
+    public static double computeNextRadiusZ(double stemRadius, double taper, double positionFraction) {
         if (taper < 0) {
             throw new InvalidValueException("taper_0 cannot be negative.");
         } else if (taper <= 1) {
@@ -561,7 +679,7 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
      * @param variation
      * @return
      */
-    protected static double randDoubleVariation(Random random, double variation) {
+    public static double randDoubleVariation(Random random, double variation) {
         // Is the variation supposed to be any value in the range [-variation, variation], or is it just supposed to be
         //  +/- variation (random sign, fixed magnitude)?
         return Helpers.randDoubleRange(random, -variation, variation);
@@ -583,13 +701,13 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
         return mcVectors;
     }
 
-    private static class TreeCreationParams {
-        private final ArrayList<GenerationFeature> features;
-        private final Random treeRandom;
-        private final StemVec3d xUnitOrigin, yUnitOrigin, zUnitOrigin;
-        private final double lengthBase;
+    public static class TreeCreationParams {
+        public final ArrayList<GenerationFeature> features;
+        public final Random treeRandom;
+        public final StemVec3d xUnitOrigin, yUnitOrigin, zUnitOrigin;
+        public final double lengthBase;
 
-        private TreeCreationParams(ArrayList<GenerationFeature> features, Random treeRandom,
+        public TreeCreationParams(ArrayList<GenerationFeature> features, Random treeRandom,
                                    StemVec3d xUnitOrigin, StemVec3d yUnitOrigin, StemVec3d zUnitOrigin, double lengthBase) {
             this.features = features;
             this.treeRandom = treeRandom;

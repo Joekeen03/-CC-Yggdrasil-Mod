@@ -12,6 +12,9 @@ import net.minecraft.init.Blocks;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.math.Vec3i;
 
+import javax.annotation.Nonnull;
+import java.util.Arrays;
+import java.util.Objects;
 import java.util.function.ToDoubleFunction;
 
 import static com.joekeen03.yggdrasil.util.TaperedCylinder.sqrt2;
@@ -71,7 +74,7 @@ public class MNTruncatedCone implements GenerationFeature {
     }
 
     @Override
-    public IntegerMinimumAABB getMinimumBoundingBox() {
+    public @Nonnull IntegerMinimumAABB getMinimumBoundingBox() {
         double theta = Math.PI/2-Math.atan2(coneUnit.y, Math.sqrt(coneUnit.z*coneUnit.z+coneUnit.x*coneUnit.x));
         double phi = Math.atan2(coneUnit.x, coneUnit.z);
 
@@ -269,4 +272,24 @@ public class MNTruncatedCone implements GenerationFeature {
         }
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        MNTruncatedCone that = (MNTruncatedCone) o;
+        return Double.compare(that.radius1, radius1) == 0 && Double.compare(that.radius2, radius2) == 0
+                && Double.compare(that.length, length) == 0 && Double.compare(that.coneSlope, coneSlope) == 0
+                && Double.compare(that.cubeDistance, cubeDistance) == 0 && origin.equals(that.origin)
+                && coneEndOrigin.equals(that.coneEndOrigin) && coneUnit.equals(that.coneUnit)
+                && coneVector.equals(that.coneVector) && Arrays.equals(plane1Units, that.plane1Units)
+                && Arrays.equals(plane2Units, that.plane2Units);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = Objects.hash(origin, coneEndOrigin, coneUnit, coneVector, radius1, radius2, length, coneSlope, cubeDistance);
+        result = 31 * result + Arrays.hashCode(plane1Units);
+        result = 31 * result + Arrays.hashCode(plane2Units);
+        return result;
+    }
 }
