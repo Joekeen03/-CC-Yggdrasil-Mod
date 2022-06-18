@@ -2,6 +2,8 @@ package com.joekeen03.yggdrasil.world.structure;
 
 import com.joekeen03.yggdrasil.util.InvalidValueException;
 
+import java.util.Random;
+
 public class TrunkParams extends StemParams {
     public final double
             scale, scaleVariation,
@@ -21,15 +23,9 @@ public class TrunkParams extends StemParams {
         this.baseSplits = baseSplits;
     }
 
-    // FIXME Should this be moved to a separate class? I.e. treat this class as level-global constant data, and another
-    //  class holds level-global volatile data?
     @Override
-    public int getNextEffectiveSplits(int i) {
-        if (i == 0) {
-            return getNextEffectiveSplits(baseSplits);
-        } else {
-            return getNextEffectiveSplits(segSplits);
-        }
+    public SegSplitError initializeError(Random random) {
+        return new SegSplitErrorTrunk(random, this);
     }
 
     public TrunkParams createVariation(TrunkVaryDoubleEnum param, double val) {

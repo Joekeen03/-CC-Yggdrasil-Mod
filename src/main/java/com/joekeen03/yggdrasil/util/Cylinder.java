@@ -165,21 +165,21 @@ public class Cylinder implements GenerationFeature {
         for (int x = 0; x < bufferSize; x++) {
             double dx = x+cubeRay.getX();
             double dx2 = dx*dx;
-            for (int z = 0; z < bufferSize; z++) {
-                double dz = z+cubeRay.getZ();
-                double dz2 = dz*dz;
-                for (int y = 0; y < bufferSize; y++) {
-                    double dy = y+cubeRay.getY();
-                    double dy2 = dy*dy;
+            for (int y = 0; y < bufferSize; y++) {
+                double dy = y+cubeRay.getY();
+                double dy2 = dy*dy;
+                for (int z = 0; z < bufferSize; z++) {
+                    double dz = z+cubeRay.getZ();
+                    double dz2 = dz*dz;
                     double dot = dx*unit.x+dy*unit.y+dz*unit.z;
                     if ((dx2+dy2+dz2)-dot*dot > radius2) {
-                        buffer[x][z][y] = AIR;
+                        buffer[x][y][z] = AIR;
                     }
                     else if (dot < 0 || dot > length) {
-                        buffer[x][z][y] = IGNORE; // Don't want it covering the cylinder ends in bark (0b00|0b10 -> 0b10)
+                        buffer[x][y][z] = IGNORE; // Don't want it covering the cylinder ends in bark (0b00|0b10 -> 0b10)
                     }
                     else {
-                        buffer[x][z][y] = WOOD;
+                        buffer[x][y][z] = WOOD;
                     }
                 }
             }
@@ -192,16 +192,19 @@ public class Cylinder implements GenerationFeature {
                 Blocks.LOG.getDefaultState().withProperty(BlockOldLog.VARIANT, BlockPlanks.EnumType.OAK)
                         .withProperty(BlockLog.LOG_AXIS, BlockLog.EnumAxis.NONE)};
         for (int x = 0; x < ICube.SIZE; x++) {
-            for (int z = 0; z < ICube.SIZE; z++) {
-                for (int y = 0; y < ICube.SIZE; y++) {
-                    int material = buffer[x+1][z+1][y+1]
-                            | (AIR & (buffer[x][z+1][y+1] | buffer[x+2][z+1][y+1] | buffer[x+1][z][y+1]
-                            | buffer[x+1][z+2][y+1] | buffer[x+1][z+1][y] | buffer[x+1][z+1][y+2]));
+            for (int y = 0; y < ICube.SIZE; y++) {
+                for (int z = 0; z < ICube.SIZE; z++) {
+                    int material = buffer[x+1][y+1][z+1]
+                            | (AIR & (buffer[x][y+1][z+1] | buffer[x+2][y+1][z+1] | buffer[x+1][y][z+1]
+                            | buffer[x+1][y+2][z+1] | buffer[x+1][y+1][z] | buffer[x+1][y+1][z+2]));
                     if (material >= WOOD) {
                         cubePrimer.setBlockState(x, y, z, blockArray[material]);
                     }
                 }
             }
+        }
+        if (Constants.DEBUG) {
+            generateDebugBoundingBox(cubePrimer, pos);
         }
     }
 }

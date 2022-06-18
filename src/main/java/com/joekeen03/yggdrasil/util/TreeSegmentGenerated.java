@@ -9,6 +9,7 @@ public class TreeSegmentGenerated extends TreeSegment {
     public final TreeSegment[] nextSegments;
     public final TreeBranch[] children;
     public final double endRadius, length;
+    public final int level;
 
     TreeSegmentGenerated(StemVec3d origin, StemVec3d zUnit, StemVec3d xUnit,
                                 double prevRadiusZ, int i, double nextChildOffset, double lastChildRotateAngle,
@@ -18,6 +19,7 @@ public class TreeSegmentGenerated extends TreeSegment {
         double radiusZ = computeNextRadiusZ(branchCreationParams, ((double) i+1)/ branchCreationParams.currBranch.curveRes);
         this.endRadius = radiusZ;
         this.length = branchCreationParams.lengthFraction;
+        this.level = branchCreationParams.level;
         if (this.endRadius < 0) {
             throw new InvalidValueException("TreeSegment computed a negative end radius!");
         }
@@ -102,7 +104,7 @@ public class TreeSegmentGenerated extends TreeSegment {
         }
         this.children = children;
 
-        int segSplitsEffective = branchCreationParams.currBranch.getNextEffectiveSplits(i);
+        int segSplitsEffective = branchCreationParams.segSplitError.getNextEffectiveSplits(i);
 
         if (i < (branchCreationParams.currBranch.curveRes-1)) { // Not the last segment in the branch/clone.
             if (segSplitsEffective == 0) { // No branching

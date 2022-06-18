@@ -1,5 +1,7 @@
 package com.joekeen03.yggdrasil.world.structure;
 
+import java.util.Random;
+
 public class BranchParams extends StemParams {
     public final int branches;
     public final double
@@ -19,15 +21,9 @@ public class BranchParams extends StemParams {
         this.branches = branches;
     }
 
-    // FIXME Should this be moved to a separate class? I.e. treat this class as level-global constant data, and another
-    //  class holds level-global volatile data?
     @Override
-    public int getNextEffectiveSplits(int i) {
-        return getNextEffectiveSplits(segSplits);
-    }
-    @Deprecated
-    public int getNextEffectiveSplits() {
-        return getNextEffectiveSplits(segSplits);
+    public SegSplitError initializeError(Random random) {
+        return new SegSplitErrorBranch(random, this);
     }
 
     public BranchParams createVariation(BranchVaryDoubleEnum param, double val) {

@@ -24,11 +24,17 @@ public class TreeSegmentNode extends TreeSegment {
         this.branchCreationParams = branchCreationParams;
     }
 
-    public TreeSegment create() {
+    public TreeSegmentGenerated create() {
         TreeModel.TreeCreationParams thisParams = new TreeModel.TreeCreationParams(new Random(seed), treeCreationParams.treeParams,
                 treeCreationParams.xUnitTrunkBase, treeCreationParams.yUnitTrunkBase, treeCreationParams.zUnitTrunkBase,
                 treeCreationParams.lengthBase, Integer.MAX_VALUE, Double.NEGATIVE_INFINITY);
-        return TreeSegment.createSegment(origin, zUnit, xUnit, baseRadius, i, nextChildOffset, lastChildRotateAngle, remainingCorrection, thisParams,
+        TreeSegment segment = TreeSegment.createSegment(origin, zUnit, xUnit, baseRadius, i, nextChildOffset, lastChildRotateAngle, remainingCorrection, thisParams,
                 branchCreationParams);
+        if (segment instanceof TreeSegmentGenerated) {
+            return (TreeSegmentGenerated) segment;
+        } else {
+            throw new InvalidValueException("TreeSegment.createSegment returned something other than a "
+                    +"TreeSegmentGenerated instance in TreeSegmentNode::create()");
+        }
     }
 }

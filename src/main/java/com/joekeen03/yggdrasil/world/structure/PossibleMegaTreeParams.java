@@ -82,7 +82,38 @@ public class PossibleMegaTreeParams {
                 0.0, Math.toRadians(40), Math.toRadians(10),
                 4, Math.toRadians(5), Math.toRadians(0), Math.toRadians(1));
 
-        BranchParams[] branchParams = new BranchParams[] {branch_1, branch_2, branch_3};
+        BranchParams branch_4 = new BranchParams(
+                Math.toRadians(20), Math.toRadians(5),
+                Math.toRadians(110), Math.toRadians(20), 4,
+                0.4, 0.05, 1.0,
+                0.0, Math.toRadians(40), Math.toRadians(10),
+                4, Math.toRadians(5), Math.toRadians(0), Math.toRadians(1));
+
+        BranchParams branch_5 = new BranchParams(
+                Math.toRadians(20), Math.toRadians(5),
+                Math.toRadians(70), Math.toRadians(20), 4,
+                0.3, 0.03, 1.0,
+                0.0, Math.toRadians(40), Math.toRadians(10),
+                4, Math.toRadians(5), Math.toRadians(0), Math.toRadians(1));
+
+        BranchParams branch_6 = new BranchParams(
+                Math.toRadians(20), Math.toRadians(5),
+                Math.toRadians(110), Math.toRadians(20), 4,
+                0.3, 0.03, 1.0,
+                0.0, Math.toRadians(40), Math.toRadians(10),
+                4, Math.toRadians(5), Math.toRadians(0), Math.toRadians(1));
+
+        BranchParams branch_7 = new BranchParams(
+                Math.toRadians(20), Math.toRadians(5),
+                Math.toRadians(110), Math.toRadians(20), 4,
+                0.5, 0.03, 1.0,
+                0.1, Math.toRadians(40), Math.toRadians(10),
+                15, Math.toRadians(0), Math.toRadians(0), Math.toRadians(18));
+
+        BranchParams[] branchParams = new BranchParams[] {
+                branch_1, branch_2, branch_3,
+                branch_4, branch_5, branch_6,
+                branch_7};
 
         LeafParams leafParams = new LeafParams(50, 0, 0.17, 1);
 
@@ -215,10 +246,10 @@ public class PossibleMegaTreeParams {
 
     public static TreeTypeParams FullScaleTest() {
         return Level3Initial2()
-//                .createTrunkVariation("Testing Full Scale",
-//                        TrunkParams.TrunkVaryDoubleEnum.length, 1500)
-//                .createTrunkVariation("Testing Full Scale",
-//                        TrunkParams.TrunkVaryDoubleEnum.lengthVariation, 400)
+                .createTrunkVariation("Testing Full Scale",
+                        TrunkParams.TrunkVaryDoubleEnum.length, 1500)
+                .createTrunkVariation("Testing Full Scale",
+                        TrunkParams.TrunkVaryDoubleEnum.lengthVariation, 400)
                 ;
     }
 

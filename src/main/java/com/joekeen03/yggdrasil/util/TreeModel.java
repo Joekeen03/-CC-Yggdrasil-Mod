@@ -1,6 +1,7 @@
 package com.joekeen03.yggdrasil.util;
 
 import com.joekeen03.yggdrasil.world.structure.BranchParams;
+import com.joekeen03.yggdrasil.world.structure.SegSplitError;
 import com.joekeen03.yggdrasil.world.structure.TreeTypeParams;
 
 import java.util.Random;
@@ -49,10 +50,6 @@ public class TreeModel {
         //      it should be (?), then stretching a mess from each branch's cross-section to the base; i.e., each branch
         //      is just my truncated cones idea, and they just join in the middle. Just do that, or would I want some
         //      way to handle this with my curved cylinders?
-        treeTypeParams.trunkParams.resetSplitError(treeRandom);
-        for (BranchParams branchParam : treeTypeParams.branchParams) {
-            branchParam.resetSplitError(treeRandom);
-        }
 
         int nChildren = 0;
         if (treeTypeParams.levels > 0) {
@@ -60,7 +57,7 @@ public class TreeModel {
         }
         int firstCutoffLevel = Integer.MAX_VALUE;
         double cutoffRadius = Double.POSITIVE_INFINITY;
-        if (treeTypeParams.leafParams.leaves > 0 && false) {
+        if (treeTypeParams.leafParams.leaves > 0) {
             firstCutoffLevel = treeTypeParams.levels-nLeafLevels;
             cutoffRadius = leafBranchRadius;
         }
@@ -70,27 +67,6 @@ public class TreeModel {
                 0, new TreeCreationParams(treeRandom, treeTypeParams, xUnit,
                 trunkBaseZUnit.crossProduct(xUnit).normalize(), trunkBaseZUnit, lengthBase,
                 firstCutoffLevel, cutoffRadius));
-    }
-
-    public static class TreeCreationParams {
-        public final Random treeRandom;
-        public final TreeTypeParams treeParams;
-        public final StemVec3d xUnitTrunkBase, yUnitTrunkBase, zUnitTrunkBase;
-        public final double lengthBase, cutoffRadius;
-        public final int firstCutoffLevel;
-
-        public TreeCreationParams(Random treeRandom, TreeTypeParams treeParams, StemVec3d xUnitTrunkBase,
-                                  StemVec3d yUnitTrunkBase, StemVec3d zUnitTrunkBase, double lengthBase,
-                                  int firstCutoffLevel, double cutoffRadius) {
-            this.treeRandom = treeRandom;
-            this.treeParams = treeParams;
-            this.xUnitTrunkBase = xUnitTrunkBase;
-            this.yUnitTrunkBase = yUnitTrunkBase;
-            this.zUnitTrunkBase = zUnitTrunkBase;
-            this.lengthBase = lengthBase;
-            this.firstCutoffLevel = firstCutoffLevel;
-            this.cutoffRadius = cutoffRadius;
-        }
     }
 
     /**
@@ -103,5 +79,38 @@ public class TreeModel {
         // Is the variation supposed to be any value in the range [-variation, variation], or is it just supposed to be
         //  +/- variation (random sign, fixed magnitude)?
         return Helpers.randDoubleRange(random, -variation, variation);
+    }
+
+    public static class TreeCreationParams {
+        public final Random treeRandom;
+        public final TreeTypeParams treeParams;
+        public final StemVec3d xUnitTrunkBase, yUnitTrunkBase, zUnitTrunkBase;
+        public final double lengthBase, cutoffRadius;
+        public final int firstCutoffLevel;
+        public final SegSplitError[] splitErrors;
+
+        public TreeCreationParams(Random treeRandom, TreeTypeParams treeParams, StemVec3d xUnitTrunkBase,
+                                  StemVec3d yUnitTrunkBase, StemVec3d zUnitTrunkBase, double lengthBase,
+                                  int firstCutoffLevel, double cutoffRadius) {
+            this.treeRandom = treeRandom;
+            this.treeParams = treeParams;
+            this.xUnitTrunkBase = xUnitTrunkBase;
+            this.yUnitTrunkBase = yUnitTrunkBase;
+            this.zUnitTrunkBase = zUnitTrunkBase;
+            this.lengthBase = lengthBase;
+            this.firstCutoffLevel = firstCutoffLevel;
+            this.cutoffRadius = cutoffRadius;
+            int nBranchLevels = (treeParams.leafParams.leaves > 0) ? treeParams.levels-1 : treeParams.levels;
+            this.splitErrors = new SegSplitError[nBranchLevels];
+            for (int i = 1; i < nBranchLevels; i++) {
+                // Works, because the treeTypeParams guarantees that there are at least as many StemParams as there
+                // are levels - unlike the paper, this doesn't reuse the last level of specified params for all further levels.
+                this.splitErrors[i] = treeParams.fetchParams(i).initializeError(treeRandom);
+            }
+        }
+
+        public SegSplitError fetchSegError(int level) {
+            return splitErrors[level];
+        }
     }
 }

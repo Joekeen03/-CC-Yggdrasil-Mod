@@ -1,5 +1,6 @@
 package com.joekeen03.yggdrasil.util;
 
+import com.joekeen03.yggdrasil.world.structure.SegSplitError;
 import com.joekeen03.yggdrasil.world.structure.StemParams;
 import com.joekeen03.yggdrasil.world.structure.TreeTypeParams;
 
@@ -22,7 +23,7 @@ public class TreeBranch {
                 0,
                 treeCreationParams,
                 new BranchCreationParams(baseRadius, length/branch.curveRes, length,
-                        branchDistance, level, treeCreationParams.treeParams));
+                        branchDistance, level, treeCreationParams));
     }
 
     public static class BranchCreationParams {
@@ -32,15 +33,17 @@ public class TreeBranch {
         public final double branchDistance;
         public final int level;
         public final StemParams currBranch;
+        public final SegSplitError segSplitError;
 
         public BranchCreationParams(double stemRadius, double lengthFraction, double branchLength,
-                                    double branchDistance, int level, TreeTypeParams treeTypeParams) {
+                                    double branchDistance, int level, TreeModel.TreeCreationParams treeCreationParams) {
             this.stemRadius = stemRadius;
             this.lengthFraction = lengthFraction;
             this.branchLength = branchLength;
             this.branchDistance = branchDistance;
             this.level = level;
-            this.currBranch = treeTypeParams.fetchParams(level);
+            this.currBranch = treeCreationParams.treeParams.fetchParams(level);
+            this.segSplitError = treeCreationParams.fetchSegError(level);
         }
     }
 }

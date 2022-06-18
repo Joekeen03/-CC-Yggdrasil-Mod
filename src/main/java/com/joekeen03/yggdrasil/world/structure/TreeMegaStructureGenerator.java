@@ -248,11 +248,11 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
             for (int i = 0; i < generatedSegment.nextSegments.length; i++) {
                 TreeSegment nextSegment = generatedSegment.nextSegments[i];
                 nextPlane1Units[i] = generatedSegment.zUnit.add(nextSegment.zUnit).normalize();
-//                StemVec3d nextAdjustment = computeNextAdjustment(nextPlane1Units[i], adjustment,
-//                        generatedSegment.zUnit, nextSegment.zUnit, generatedSegment.length,
-//                        generatedSegment.baseRadius, generatedSegment.endRadius);
-//                processSegment(nextSegment, new StemVec3d[] {nextPlane1Units[i]},
-//                        nextAdjustment, generationFeatures);
+                StemVec3d nextAdjustment = computeNextAdjustment(nextPlane1Units[i], adjustment,
+                        generatedSegment.zUnit, nextSegment.zUnit, generatedSegment.length,
+                        generatedSegment.baseRadius, generatedSegment.endRadius);
+                processSegment(nextSegment, new StemVec3d[] {nextPlane1Units[i]},
+                        nextAdjustment, generationFeatures);
             }
             if (nextPlane1Units.length == 0) { // End of the branch
                 nextPlane1Units = new StemVec3d[] {generatedSegment.zUnit};
@@ -271,18 +271,9 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
                         generatedSegment.baseRadius, generatedSegment.endRadius, generatedSegment.length);
                 generationFeatures.add(feature);
             }
-            for (int i = 0; i < generatedSegment.nextSegments.length; i++) {
-                TreeSegment nextSegment = generatedSegment.nextSegments[i];
-//                nextPlane1Units[i] = generatedSegment.zUnit.add(nextSegment.zUnit).normalize();
-                StemVec3d nextAdjustment = computeNextAdjustment(nextPlane1Units[i], adjustment,
-                        generatedSegment.zUnit, nextSegment.zUnit, generatedSegment.length,
-                        generatedSegment.baseRadius, generatedSegment.endRadius);
-                processSegment(nextSegment, new StemVec3d[] {nextPlane1Units[i]},
-                        nextAdjustment, generationFeatures);
-            }
         } else if (segment instanceof TreeSegmentNode) {
-//            LeafBranch feature = new LeafBranch((TreeSegmentNode) segment);
-//            generationFeatures.add(feature);
+            LeafBranch feature = new LeafBranch((TreeSegmentNode) segment, adjustment);
+            generationFeatures.add(feature);
         }
     }
 

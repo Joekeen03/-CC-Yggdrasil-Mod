@@ -208,40 +208,37 @@ public class MNTruncatedCone implements GenerationFeature {
         for (int x = 0; x < bufferSize; x++) {
             double dx = x+cubeRay.x;
             double dx2 = dx*dx;
-            for (int z = 0; z < bufferSize; z++) {
-                double dz = z+cubeRay.z;
-                double dz2 = dz*dz;
-                for (int y = 0; y < bufferSize; y++) {
-                    double dy = y+cubeRay.y;
-                    double dy2 = dy*dy;
+            for (int y = 0; y < bufferSize; y++) {
+                double dy = y+cubeRay.y;
+                double dy2 = dy*dy;
+                for (int z = 0; z < bufferSize; z++) {
+                    double dz = z+cubeRay.z;
+                    double dz2 = dz*dz;
                     double dot = dx*coneUnit.x+dy*coneUnit.y+dz*coneUnit.z;
                     double currRadius = radius1-dot/coneSlope;
                     if ((dx2+dy2+dz2)-dot*dot > currRadius*currRadius) {
-                        buffer[x][z][y] = AIR;
+                        buffer[x][y][z] = AIR;
                     } else if (!(isInAllPlanes(plane1Units, dx, dy, dz, Vec3d.ZERO)
                                 && isInAllPlanes(plane2Units, dx, dy, dz, coneVector))) {
-                        buffer[x][z][y] = IGNORE; // Don't want it covering the cylinder ends in bark (0b00|0b10 -> 0b10)
+                        buffer[x][y][z] = IGNORE; // Don't want it covering the cylinder ends in bark (0b00|0b10 -> 0b10)
                     }
                     else {
-                        buffer[x][z][y] = WOOD;
+                        buffer[x][y][z] = WOOD;
                     }
                 }
             }
         }
         // Whichever direction the branch is going in.
-        BlockLog.EnumAxis axis = (Math.abs(coneUnit.y) > sqrt2/2) ? BlockLog.EnumAxis.Y
-                : (Math.abs(coneUnit.z) > Math.abs(coneUnit.x)) ? BlockLog.EnumAxis.Z : BlockLog.EnumAxis.X;
-        IBlockState[] blockArray = new IBlockState[] {null, null,
-                Blocks.LOG.getDefaultState().withProperty(BlockOldLog.VARIANT, BlockPlanks.EnumType.OAK)
-                        .withProperty(BlockLog.LOG_AXIS, axis),
-                Blocks.LOG.getDefaultState().withProperty(BlockOldLog.VARIANT, BlockPlanks.EnumType.OAK)
-                        .withProperty(BlockLog.LOG_AXIS, BlockLog.EnumAxis.NONE)};
+        Helpers.PrincipalAxis axis = Helpers.getMainAxis(coneUnit);
+        IBlockState axisLog = (axis == Helpers.PrincipalAxis.Y) ? BlockHelpers.blockOakY
+                : (axis == Helpers.PrincipalAxis.Z) ? BlockHelpers.blockOakZ : BlockHelpers.blockOakX;
+        IBlockState[] blockArray = new IBlockState[] {null, null, axisLog, BlockHelpers.blockOakNone};
         for (int x = 0; x < ICube.SIZE; x++) {
-            for (int z = 0; z < ICube.SIZE; z++) {
-                for (int y = 0; y < ICube.SIZE; y++) {
-                    int material = buffer[x+1][z+1][y+1]
-                            | (AIR & (buffer[x][z+1][y+1] | buffer[x+2][z+1][y+1] | buffer[x+1][z][y+1]
-                            | buffer[x+1][z+2][y+1] | buffer[x+1][z+1][y] | buffer[x+1][z+1][y+2]));
+            for (int y = 0; y < ICube.SIZE; y++) {
+                for (int z = 0; z < ICube.SIZE; z++) {
+                    int material = buffer[x+1][y+1][z+1]
+                            | (AIR & (buffer[x][y+1][z+1] | buffer[x+2][y+1][z+1] | buffer[x+1][y][z+1]
+                            | buffer[x+1][y+2][z+1] | buffer[x+1][y+1][z] | buffer[x+1][y+1][z+2]));
                     if (material >= WOOD) {
                         cubePrimer.setBlockState(x, y, z, blockArray[material]);
                     }
@@ -249,26 +246,7 @@ public class MNTruncatedCone implements GenerationFeature {
             }
         }
         if (Constants.DEBUG) {
-            Vec3i debugCubeRay = pos.getMinBlockPos();
-            IntegerMinimumAABB box = this.getMinimumBoundingBox();
-            IntegerAABB blockBox = new IntegerAABB(Coords.cubeToMinBlock(box.minX), Coords.cubeToMinBlock(box.minY),
-                    Coords.cubeToMinBlock(box.minZ), Coords.cubeToMaxBlock(box.maxX),
-                    Coords.cubeToMaxBlock(box.maxY), Coords.cubeToMaxBlock(box.maxZ));
-            for (int dx = 0; dx < ICube.SIZE; dx++) {
-                int x = dx+debugCubeRay.getX();
-                for (int dz = 0; dz < ICube.SIZE; dz++) {
-                    int z = dz+debugCubeRay.getZ();
-                    for (int dy = 0; dy < ICube.SIZE; dy++) {
-                        int y = dy+debugCubeRay.getY();
-                        int nMet = ((x == blockBox.minX || x == blockBox.maxX) ? 1 : 0)
-                                + ((y == blockBox.minY || y == blockBox.maxY) ? 1 : 0)
-                                + ((z == blockBox.minZ || z == blockBox.maxZ) ? 1 : 0);
-                        if (nMet >= 2) { // Only fill edges
-                            cubePrimer.setBlockState(dx, dy, dz, Blocks.IRON_BLOCK.getDefaultState());
-                        }
-                    }
-                }
-            }
+            generateDebugBoundingBox(cubePrimer, pos);
         }
     }
 

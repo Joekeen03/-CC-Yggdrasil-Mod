@@ -8,6 +8,9 @@ import java.util.function.ToDoubleFunction;
 import java.util.function.ToIntFunction;
 
 public class Helpers {
+    public static final double epsilon = 1.0000000116860974E-7D;
+    public static final double epsilon2 = epsilon*epsilon;
+
     public static <T> int arraySectionMin(T[] arr, int sectionStart, int sectionStop, ToIntFunction<T> extractor) {
         int min = Integer.MAX_VALUE;
         for (int i = sectionStart; i < sectionStop; i++) {
@@ -129,5 +132,29 @@ public class Helpers {
 
     public static boolean hasNaN(Vec3d v) {
         return (Double.isNaN(v.x) || Double.isNaN(v.y) || Double.isNaN(v.z));
+    }
+
+    public static boolean isZero(Vec3d vec) {
+        return (vec == Vec3d.ZERO || vec.lengthSquared() < epsilon2);
+    }
+
+    public static PrincipalAxis getMainAxis(Vec3d vec) {
+        double xMag = Math.abs(vec.x);
+        double yMag = Math.abs(vec.y);
+        double zMag = Math.abs(vec.z);
+        if (isZero(vec)) {
+            return PrincipalAxis.NONE;
+        }
+        if (zMag > xMag && zMag > yMag) {
+            return PrincipalAxis.Z;
+        } else if (xMag > yMag) {
+            return PrincipalAxis.X;
+        } else {
+            return PrincipalAxis.Y;
+        }
+    }
+
+    public enum PrincipalAxis {
+        X, Y, Z, NONE;
     }
 }
