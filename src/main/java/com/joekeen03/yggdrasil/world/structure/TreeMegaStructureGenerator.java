@@ -179,18 +179,35 @@ public class TreeMegaStructureGenerator implements ICubicStructureGenerator {
             -Passing a set of flags around between features, then having a final step that transforms those flags into
                 block placements.
                 * Probably need two bits for direction, one bit for air, one bit for wood.
-            -Proper branching
             -Self-intersection avoidance
             -Trunk should handle loss of thickness (due to branching) better - cone shaped? Maybe a bevel at the
                 branch's level? Perhaps the next trunk segment is offset, due to the branch splitting from it?
             -Smoothing to connect branches with the trunk.
             -Generation features:
-                *Branching branches - start to develop into proper tree
                 *Leaf placement.
                 *Knots
                 *Broken branches
                 *Roots - should influence trunk shape?
+                    -Probably several major taproots going roughly downwards, with horizontal-ish roots spreading out
+                        at various levels.
+                *Tree Throws (depressions in ground)
+                *Tree hollows
             -Verify branches are actually being placed at correct heights.
+            -Fire-resistant/proof wood.
+            -Other decorative features:
+                *Miniature lakes and other micro-climates/biomes
+                *Hanging vines/other plant life
+                *Various animal life
+                    +Tree is so big it has micro-biomes w/in it
+                *Maybe some kind of light source spread throughout the tree?
+                *Moss on older branches
+                *Villages
+            -Special biome on the ground level, due to the tree's impact on the terrain.
+            -What if knots connected to some kind of massive, internal cave system running throughout the trunk?
+            -Cave systems connected to/formed by roots
+                *Roots maybe connect to massive underground lakes.
+            -Giant leaves?
+            -Heartwood/sapwood/bark distinction on larger branches & trunk.
          */
 
     // Using the tree generation model laid out in "Creation and Rendering of Realistic Trees", by Jason Weber and

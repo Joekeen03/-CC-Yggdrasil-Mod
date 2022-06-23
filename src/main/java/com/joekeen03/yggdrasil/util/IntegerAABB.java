@@ -38,6 +38,16 @@ public class IntegerAABB{
     }
 
     /**
+     * Merge two bounding boxes together, creating a new bounding box which contains both of them.
+     * @param a
+     * @param b
+     */
+    public IntegerAABB(IntegerAABB a, IntegerAABB b) {
+        this(Math.min(a.minX, b.minX), Math.min(a.minY, b.minY), Math.min(a.minZ, b.minZ),
+                Math.max(a.maxX, b.maxX), Math.min(a.maxY, b.maxY), Math.min(a.maxZ, b.maxZ));
+    }
+
+    /**
      * Returns whether the specified point is in the bounding box.
      * @return
      */

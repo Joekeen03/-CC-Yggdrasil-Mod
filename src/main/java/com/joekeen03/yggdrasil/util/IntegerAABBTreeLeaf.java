@@ -13,8 +13,8 @@ public class IntegerAABBTreeLeaf extends IntegerAABBTreeNode {
     public void forEachLeaf(CubePos pos, Consumer<GenerationFeature> consumer) {
         if (this.box.isInBoundingBox(pos)) {
             // FIXME need to test the intersectsCube method.
-            if (((IntegerMinimumAABB)this.box).wrappedShape.intersectsCube(pos) || true) {
-                consumer.accept(((IntegerMinimumAABB)this.box).wrappedShape);
+            if (((IntegerMinimumAABB)this.box).wrappedFeature.intersectsCube(pos) || true) {
+                consumer.accept(((IntegerMinimumAABB)this.box).wrappedFeature);
             }
         }
     }
