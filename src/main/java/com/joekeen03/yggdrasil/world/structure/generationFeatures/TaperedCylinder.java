@@ -1,5 +1,8 @@
-package com.joekeen03.yggdrasil.util;
+package com.joekeen03.yggdrasil.world.structure.generationFeatures;
 
+import com.joekeen03.yggdrasil.util.Constants;
+import com.joekeen03.yggdrasil.util.IntegerMinimumAABB;
+import com.joekeen03.yggdrasil.util.InvalidValueException;
 import io.github.opencubicchunks.cubicchunks.api.util.CubePos;
 import io.github.opencubicchunks.cubicchunks.api.world.ICube;
 import io.github.opencubicchunks.cubicchunks.api.worldgen.CubePrimer;
@@ -47,7 +50,8 @@ public class TaperedCylinder implements GenerationFeature {
     }
 
     @Override
-    public @Nonnull IntegerMinimumAABB getMinimumBoundingBox() {
+    public @Nonnull
+    IntegerMinimumAABB getMinimumBoundingBox() {
         // Compute theta and phi so I can use the basic cylinder code.
         double theta = Math.PI/2-Math.atan2(unit.y, Math.sqrt(unit.z*unit.z+unit.x*unit.x));
         double phi = Math.atan2(unit.x, unit.z);

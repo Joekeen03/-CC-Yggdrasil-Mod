@@ -1,4 +1,7 @@
-package com.joekeen03.yggdrasil.util;
+package com.joekeen03.yggdrasil.world.structure.tree;
+
+import com.joekeen03.yggdrasil.util.InvalidValueException;
+import com.joekeen03.yggdrasil.util.StemVec3d;
 
 import java.util.Random;
 

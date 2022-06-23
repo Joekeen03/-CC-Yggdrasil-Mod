@@ -1,5 +1,6 @@
 package com.joekeen03.yggdrasil.util;
 
+import com.joekeen03.yggdrasil.world.structure.generationFeatures.GenerationFeature;
 import io.github.opencubicchunks.cubicchunks.api.util.CubePos;
 
 import java.util.function.Consumer;

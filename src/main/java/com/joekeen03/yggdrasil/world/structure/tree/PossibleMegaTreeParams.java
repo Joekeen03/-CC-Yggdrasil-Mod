@@ -1,6 +1,6 @@
-package com.joekeen03.yggdrasil.world.structure;
+package com.joekeen03.yggdrasil.world.structure.tree;
 
-import static com.joekeen03.yggdrasil.world.structure.TreeTypeParams.TreeTypeVaryIntEnum.levels;
+import static com.joekeen03.yggdrasil.world.structure.tree.TreeTypeParams.TreeTypeVaryIntEnum.levels;
 
 public class PossibleMegaTreeParams {
     private static final double TEMP = 0;

@@ -2,6 +2,11 @@ package com.joekeen03.yggdrasil.world.structure;
 
 import com.joekeen03.yggdrasil.ModYggdrasil;
 import com.joekeen03.yggdrasil.util.*;
+import com.joekeen03.yggdrasil.world.structure.tree.*;
+import com.joekeen03.yggdrasil.world.structure.generationFeatures.DoubleTruncatedCone;
+import com.joekeen03.yggdrasil.world.structure.generationFeatures.GenerationFeature;
+import com.joekeen03.yggdrasil.world.structure.generationFeatures.LeafBranch;
+import com.joekeen03.yggdrasil.world.structure.generationFeatures.MNTruncatedCone;
 import io.github.opencubicchunks.cubicchunks.api.util.CubePos;
 import io.github.opencubicchunks.cubicchunks.api.world.ICube;
 import io.github.opencubicchunks.cubicchunks.api.worldgen.CubePrimer;
@@ -9,10 +14,8 @@ import io.github.opencubicchunks.cubicchunks.api.worldgen.structure.ICubicStruct
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
-import org.apache.commons.lang3.NotImplementedException;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Random;
 
 public class TreeMegaStructureGenerator implements ICubicStructureGenerator {

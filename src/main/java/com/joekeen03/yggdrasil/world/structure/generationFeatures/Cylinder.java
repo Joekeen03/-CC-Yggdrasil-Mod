@@ -1,5 +1,8 @@
-package com.joekeen03.yggdrasil.util;
+package com.joekeen03.yggdrasil.world.structure.generationFeatures;
 
+import com.joekeen03.yggdrasil.util.Constants;
+import com.joekeen03.yggdrasil.util.IntegerMinimumAABB;
+import com.joekeen03.yggdrasil.util.InvalidValueException;
 import io.github.opencubicchunks.cubicchunks.api.util.CubePos;
 import io.github.opencubicchunks.cubicchunks.api.world.ICube;
 import io.github.opencubicchunks.cubicchunks.api.worldgen.CubePrimer;
@@ -63,7 +66,8 @@ public class Cylinder implements GenerationFeature {
      * @return
      */
     @Override
-    public @Nonnull IntegerMinimumAABB getMinimumBoundingBox() {
+    public @Nonnull
+    IntegerMinimumAABB getMinimumBoundingBox() {
         // For Cartesian coords, I use Minecraft's coord system - y-axis is vertical, x-axis is west-east (+x = east),
         //      and z-axis is north-south (+z = south)
         // I use ISO spherical coordinate conventions:

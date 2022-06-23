@@ -1,4 +1,4 @@
-package com.joekeen03.yggdrasil.world.structure;
+package com.joekeen03.yggdrasil.world.structure.tree;
 
 import java.util.Random;
 

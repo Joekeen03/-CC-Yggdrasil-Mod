@@ -1,6 +1,11 @@
-package com.joekeen03.yggdrasil.util;
+package com.joekeen03.yggdrasil.world.structure.generationFeatures;
 
-import com.joekeen03.yggdrasil.world.structure.StemParams;
+import com.joekeen03.yggdrasil.util.*;
+import com.joekeen03.yggdrasil.world.structure.tree.TreeBranch;
+import com.joekeen03.yggdrasil.world.structure.tree.TreeSegment;
+import com.joekeen03.yggdrasil.world.structure.tree.TreeSegmentGenerated;
+import com.joekeen03.yggdrasil.world.structure.tree.TreeSegmentNode;
+import com.joekeen03.yggdrasil.world.structure.tree.StemParams;
 import io.github.opencubicchunks.cubicchunks.api.util.CubePos;
 import io.github.opencubicchunks.cubicchunks.api.world.ICube;
 import io.github.opencubicchunks.cubicchunks.api.worldgen.CubePrimer;

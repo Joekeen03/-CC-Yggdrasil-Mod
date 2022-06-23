@@ -1,15 +1,13 @@
-package com.joekeen03.yggdrasil.util;
+package com.joekeen03.yggdrasil.world.structure.tree;
 
-import com.joekeen03.yggdrasil.world.structure.SegSplitError;
-import com.joekeen03.yggdrasil.world.structure.StemParams;
-import com.joekeen03.yggdrasil.world.structure.TreeTypeParams;
+import com.joekeen03.yggdrasil.util.StemVec3d;
 
 public class TreeBranch {
     public final TreeSegment firstSegment;
 
     public TreeBranch(StemVec3d origin, StemVec3d zUnit, StemVec3d xUnit,
-                                    double length, double baseRadius, int nChildren,
-                                    int level, TreeModel.TreeCreationParams treeCreationParams) {
+                      double length, double baseRadius, int nChildren,
+                      int level, TreeModel.TreeCreationParams treeCreationParams) {
         double branchDistance = length/nChildren;
         double firstChildOffset = branchDistance/2;
         if (level == 0) {

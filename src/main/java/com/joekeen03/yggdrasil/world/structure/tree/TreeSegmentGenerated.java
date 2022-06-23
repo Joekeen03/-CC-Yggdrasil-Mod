@@ -1,6 +1,8 @@
-package com.joekeen03.yggdrasil.util;
+package com.joekeen03.yggdrasil.world.structure.tree;
 
-import com.joekeen03.yggdrasil.world.structure.*;
+import com.joekeen03.yggdrasil.util.Helpers;
+import com.joekeen03.yggdrasil.util.InvalidValueException;
+import com.joekeen03.yggdrasil.util.StemVec3d;
 import org.apache.commons.lang3.NotImplementedException;
 
 import java.util.ArrayList;
@@ -12,9 +14,9 @@ public class TreeSegmentGenerated extends TreeSegment {
     public final int level;
 
     TreeSegmentGenerated(StemVec3d origin, StemVec3d zUnit, StemVec3d xUnit,
-                                double prevRadiusZ, int i, double nextChildOffset, double lastChildRotateAngle,
-                                double remainingCorrection,
-                                TreeModel.TreeCreationParams treeCreationParams, TreeBranch.BranchCreationParams branchCreationParams) {
+                         double prevRadiusZ, int i, double nextChildOffset, double lastChildRotateAngle,
+                         double remainingCorrection,
+                         TreeModel.TreeCreationParams treeCreationParams, TreeBranch.BranchCreationParams branchCreationParams) {
         super(origin, zUnit, prevRadiusZ);
         double radiusZ = computeNextRadiusZ(branchCreationParams, ((double) i+1)/ branchCreationParams.currBranch.curveRes);
         this.endRadius = radiusZ;

@@ -1,22 +1,15 @@
-package com.joekeen03.yggdrasil.util;
+package com.joekeen03.yggdrasil.world.structure.generationFeatures;
 
-import io.github.opencubicchunks.cubicchunks.api.util.Coords;
+import com.joekeen03.yggdrasil.util.*;
 import io.github.opencubicchunks.cubicchunks.api.util.CubePos;
 import io.github.opencubicchunks.cubicchunks.api.world.ICube;
 import io.github.opencubicchunks.cubicchunks.api.worldgen.CubePrimer;
-import net.minecraft.block.BlockLog;
-import net.minecraft.block.BlockOldLog;
-import net.minecraft.block.BlockPlanks;
 import net.minecraft.block.state.IBlockState;
-import net.minecraft.init.Blocks;
 import net.minecraft.util.math.Vec3d;
-import net.minecraft.util.math.Vec3i;
 
 import javax.annotation.Nonnull;
 
 import java.util.Objects;
-
-import static com.joekeen03.yggdrasil.util.TaperedCylinder.sqrt2;
 
 public class DoubleTruncatedCone implements GenerationFeature {
     private final Vec3d origin, coneEndOrigin, coneUnit, plane1Unit, plane2Unit;
@@ -64,7 +57,8 @@ public class DoubleTruncatedCone implements GenerationFeature {
     }
 
     @Override
-    public @Nonnull IntegerMinimumAABB getMinimumBoundingBox() {
+    public @Nonnull
+    IntegerMinimumAABB getMinimumBoundingBox() {
         double theta = Math.PI/2-Math.atan2(coneUnit.y, Math.sqrt(coneUnit.z*coneUnit.z+coneUnit.x*coneUnit.x));
         double phi = Math.atan2(coneUnit.x, coneUnit.z);
 

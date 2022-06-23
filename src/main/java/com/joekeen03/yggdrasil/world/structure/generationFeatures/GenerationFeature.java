@@ -1,5 +1,7 @@
-package com.joekeen03.yggdrasil.util;
+package com.joekeen03.yggdrasil.world.structure.generationFeatures;
 
+import com.joekeen03.yggdrasil.util.IntegerAABB;
+import com.joekeen03.yggdrasil.util.IntegerMinimumAABB;
 import io.github.opencubicchunks.cubicchunks.api.util.Coords;
 import io.github.opencubicchunks.cubicchunks.api.util.CubePos;
 import io.github.opencubicchunks.cubicchunks.api.world.ICube;

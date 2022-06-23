@@ -1,9 +1,9 @@
 package com.joekeen03.yggdrasil.util;
 
 import com.joekeen03.yggdrasil.ModYggdrasil;
+import com.joekeen03.yggdrasil.world.structure.generationFeatures.GenerationFeature;
 import io.github.opencubicchunks.cubicchunks.api.util.CubePos;
 import net.minecraft.util.math.Vec3d;
-import net.minecraft.util.math.Vec3i;
 
 import java.util.Random;
 import java.util.function.ToDoubleFunction;
