@@ -18,6 +18,8 @@ import javax.annotation.Nonnull;
  */
 public class BranchJoin implements GenerationFeature {
 
+    // FIXME this is all wrong...it should be using the cylinders/truncated cone generation features, and using their
+    //  adjusted origin, with their variable radius...fuck.
     private static final double CUTOFF = 1.2;
 
     private final TreeSegment baseSegment;
@@ -125,6 +127,7 @@ public class BranchJoin implements GenerationFeature {
                             buffer[x][y][z] = 0;
                         }
                     }
+                    // FIXME Possible weird generation if the branch spawns at the start/end of its parent segment.
                 }
             }
         }
