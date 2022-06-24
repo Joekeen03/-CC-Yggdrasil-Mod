@@ -99,9 +99,9 @@ public class TreeModel {
             this.lengthBase = lengthBase;
             this.firstCutoffLevel = firstCutoffLevel;
             this.cutoffRadius = cutoffRadius;
-            int nBranchLevels = (treeParams.leafParams.leaves > 0) ? treeParams.levels-1 : treeParams.levels;
+            int nBranchLevels = treeParams.stemLevels;
             this.splitErrors = new SegSplitError[nBranchLevels];
-            for (int i = 1; i < nBranchLevels; i++) {
+            for (int i = 0; i < nBranchLevels; i++) {
                 // Works, because the treeTypeParams guarantees that there are at least as many StemParams as there
                 // are levels - unlike the paper, this doesn't reuse the last level of specified params for all further levels.
                 this.splitErrors[i] = treeParams.fetchParams(i).initializeError(treeRandom);

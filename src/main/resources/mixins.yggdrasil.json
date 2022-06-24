@@ -11,7 +11,7 @@
     "conformVisibility": true
   },
   "mixins": [
-    "Mixin_GuiMainMenu"
+    "common.Mixin_GuiMainMenu"
   ],
   "client": [
   ],

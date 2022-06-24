@@ -32,7 +32,7 @@ public class TreeSegmentGenerated extends TreeSegment {
         double lastChildAngle = lastChildRotateAngle;
         final int nextLevel = branchCreationParams.level+1;
         TreeBranch[] children = new TreeBranch[0];
-        if (nextLevel < treeCreationParams.treeParams.levels) {
+        if (nextLevel < treeCreationParams.treeParams.stemLevels) {
             ArrayList<TreeBranch> branches = new ArrayList<>(10);
             while (offset < endLength) {
                 BranchParams nextBranch = (BranchParams)treeCreationParams.treeParams.fetchParams(nextLevel);

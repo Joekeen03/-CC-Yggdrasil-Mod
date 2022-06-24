@@ -20,7 +20,7 @@ public class TreeTypeParams {
             lobeDepth,
             flare,
             attractionUp;
-    public final int levels, lobes;
+    public final int levels, stemLevels, lobes;
     public final TrunkParams trunkParams;
     public final BranchParams[] branchParams;
     public final LeafParams leafParams;
@@ -37,7 +37,8 @@ public class TreeTypeParams {
                           TrunkParams trunkParams,
                           BranchParams[] branchParams,
                           LeafParams leafParams) {
-        int branchLevels = levels-(LEAF_LEVELS+TRUNK_LEVELS);
+        stemLevels = levels-LEAF_LEVELS;
+        int branchLevels = stemLevels-TRUNK_LEVELS;
         if (branchParams.length < branchLevels) {
             throw new InvalidValueException("BranchParams array must be at least as long as levels-2.");
         } else {

@@ -250,7 +250,7 @@ public class PossibleMegaTreeParams {
                         TrunkParams.TrunkVaryDoubleEnum.length, 1500)
                 .createTrunkVariation("Testing Full Scale",
                         TrunkParams.TrunkVaryDoubleEnum.lengthVariation, 400)
-                ;
+                .createTreeTypeVariation("Testing Full Scale Leaf Generation", TreeTypeParams.TreeTypeVaryIntEnum.levels, 8);
     }
 
     public static final TreeTypeParams active = FullScaleTest();

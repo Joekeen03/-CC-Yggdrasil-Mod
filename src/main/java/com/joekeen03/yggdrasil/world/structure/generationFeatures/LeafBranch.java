@@ -64,7 +64,7 @@ public class LeafBranch implements GenerationFeature {
     }
 
     private double computeMaxLength(double maxLength, double offset, int level) {
-        if (level+1 >= branchNode.treeCreationParams.treeParams.levels-1) { // Next level is the leaf level
+        if (level+1 >= branchNode.treeCreationParams.treeParams.stemLevels) { // Next level is the leaf level
             return maxLength;
         }
         StemParams childParams = branchNode.treeCreationParams.treeParams.fetchParams(level+1);
@@ -155,7 +155,7 @@ public class LeafBranch implements GenerationFeature {
     private void generateSegment(byte[][][] buffer, int bufferSize, Vec3i bufferOrigin, TreeSegmentGenerated segment) {
         // Generate all segments at this level first.
         byte fillValue = LEAF;
-        if (segment.level < (branchNode.treeCreationParams.treeParams.levels-1)
+        if (segment.level < branchNode.treeCreationParams.treeParams.stemLevels
                 || branchNode.treeCreationParams.treeParams.leafParams.leaves == 0) {
             fillValue = AIR;
         }
