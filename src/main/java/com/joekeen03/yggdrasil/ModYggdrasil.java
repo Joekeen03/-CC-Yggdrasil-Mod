@@ -34,7 +34,7 @@ public class ModYggdrasil
     public ModYggdrasil()
     {
         MinecraftForge.EVENT_BUS.register(this);
-        logger = LogManager.getLogger("Yggdrasil");
+        logger = LogManager.getLogger(NAME);
     }
 
     @EventHandler
