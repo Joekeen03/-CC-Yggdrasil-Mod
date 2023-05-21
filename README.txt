@@ -1,1 +1,0 @@
-Just a testing ground for my giga-tree mod for Cubic Chunks 1.12.2, while I figure out how worldgen works.
